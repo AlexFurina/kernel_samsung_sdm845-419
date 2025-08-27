@@ -69,10 +69,6 @@
 #include "xfrm.h"
 #include "ebitmap.h"
 #include "audit.h"
-#ifdef CONFIG_KDP_CRED
-#include <linux/uh.h>
-#include <linux/kdp.h>
-#endif
 
 /* Policy capability names */
 const char *selinux_policycap_names[__POLICYDB_CAPABILITY_MAX] = {
@@ -3628,7 +3624,7 @@ int security_netlbl_secattr_to_sid(struct selinux_state *state,
 	struct context *ctx;
 	struct context ctx_new;
 
-	if (!state->initialized)
+	if (!state->initialized) {
 		*sid = SECSID_NULL;
 		return 0;
 	}

@@ -86,11 +86,6 @@ fw-external-$(CONFIG_SENSORS_VL53L5) += range_sensor/vl53l5_c2.bin \
 					range_sensor/generic_xtalk_shape_c2_02.bin
 endif
 
-# FIVE
-ifeq ($(CONFIG_FIVE_TEE_DRIVER),y)
-include $(srctree)/firmware/five/Makefile
-endif
-
 quiet_cmd_fwbin = MK_FW   $@
       cmd_fwbin = FWNAME="$(patsubst firmware/%.gen.S,%,$@)";		     \
 		  FWSTR="$(subst /,_,$(subst .,_,$(subst -,_,$(patsubst	     \
