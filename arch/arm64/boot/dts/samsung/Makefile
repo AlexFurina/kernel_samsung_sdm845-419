@@ -25,6 +25,7 @@ $(eval $(call sec_dtbo_build, \
 
 endif
 
+dts-dirs += x1q
 dts-dirs += y2q
 dts-dirs += z3q
 
