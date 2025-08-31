@@ -185,6 +185,9 @@ config SENSORS_A96T365IF
 	bool "Choose A96T365IF"
 	default n
 	help
+	  This option enables grip sensors using
+	  SemTech a96t365if device driver.
+	  Say N here if you do not use a96t365if.
 
 config SENSORS_A96T3X6_UNSUPPORT_OTG
 	depends on I2C
