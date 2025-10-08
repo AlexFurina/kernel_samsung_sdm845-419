@@ -11,4 +11,5 @@ obj-$(CONFIG_GSI) += gsi/
 obj-$(CONFIG_IPA3) += ipa/
 obj-$(CONFIG_USB_BAM) += usb_bam.o
 obj-$(CONFIG_QCOM_GENI_SE) += qcom-geni-se.o
+obj-$(CONFIG_QPNP_COINCELL) += qpnp-coincell.o
 obj-$(CONFIG_MSM_11AD) += msm_11ad/
