@@ -165,7 +165,9 @@
 			     &tert_aux_pcm_din_sleep
 			     &tert_aux_pcm_dout_sleep>;
 	};
+};
 
+&apps_rsc {
 	rpmh-regulator-ldoa25 {
 		pm8998_l25: regulator-l25 {
 			/delete-property/qcom,init-mode;

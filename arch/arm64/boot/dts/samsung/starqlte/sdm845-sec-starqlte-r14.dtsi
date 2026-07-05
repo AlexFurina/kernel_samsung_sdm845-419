@@ -49,7 +49,7 @@
 	};
 };
 
-&soc {
+&apps_rsc {
 	rpmh-regulator-ldoa25 {
 		pm8998_l25: regulator-l25 {
 			regulator-min-microvolt = <3000000>;

@@ -223,6 +223,9 @@
 		pinctrl-0 = <&gpio8_adc_default>;
 	};
 
+};
+
+&apps_rsc {
 	/* H/W request */
 	rpmh-regulator-ldoa18 {
 		pm8998_l18: regulator-l18 {

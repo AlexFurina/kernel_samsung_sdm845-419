@@ -335,6 +335,9 @@
 				(-110)(-120)(-130)(-140)(-150)(-160)(-170)(-180)(-190) (-200)>;
 	};
 
+};
+
+&apps_rsc {
 	rpmh-regulator-ldoa18 {
 		pm8998_l18: regulator-l18 {
 			regulator-name = "pm8998_l18";
@@ -346,6 +349,9 @@
 	};
 
 	/* set LMh freq mitigation temperature */
+};
+
+&soc {
 	thermal_zones: thermal-zones {
 		lmh-dcvs-01 {
 			trips {

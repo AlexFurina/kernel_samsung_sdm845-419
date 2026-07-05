@@ -279,6 +279,9 @@
 		qcom,bus-mas = <MSM_BUS_MASTER_BLSP_1>;
 	};
 
+};
+
+&apps_rsc {
 	rpmh-regulator-ldoa14 {
 		pm8998_l14: regulator-l14 {
 			regulator-name = "pm8998_l14";
