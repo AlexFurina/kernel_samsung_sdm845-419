@@ -56,6 +56,7 @@ static struct subsystem_debug_info {
 
 static bool subsystem_is_expected_state(struct subsystem_debug_info *debug_info)
 {
+#if 0
 	extern bool voice_activated;
 
 	if ((!strncmp(debug_info->name, "adsp", 4)
@@ -65,8 +66,8 @@ static bool subsystem_is_expected_state(struct subsystem_debug_info *debug_info)
 		return true;
 	} else
 		return false;
+#endif
 }
-
 static void subsystem_detect_sleep_error(
 	struct subsystem_debug_info *debug_info, uint64_t duration)
 {
