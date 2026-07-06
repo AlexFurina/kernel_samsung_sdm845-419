@@ -495,10 +495,6 @@
 	firmware: firmware {
 		android {
 			compatible = "android,firmware";
-			vbmeta {
-				compatible = "android,vbmeta";
-				parts = "vbmeta,boot,system,vendor,dtbo";
-			};
 
 			fstab {
 				compatible = "android,fstab";
@@ -534,79 +530,78 @@
 			reg = <0 0x85fc0000 0 0x2f40000>;
 		};
 
-		qseecom_mem: qseecom_region@0x8ab00000 {
+		qseecom_mem: qseecom_region@8ab00000 {
 			compatible = "shared-dma-pool";
 			no-map;
 			reg = <0 0x8ab00000 0 0x1400000>;
 		};
 
-		pil_camera_mem: camera_region@0x8bf00000 {
+		pil_camera_mem: camera_region@8bf00000 {
 			compatible = "removed-dma-pool";
 			no-map;
 			reg = <0 0x8bf00000 0 0x500000>;
 		};
 
-		pil_ipa_fw_mem: ips_fw_region@0x8c400000 {
+		pil_ipa_fw_mem: ipa_fw_region@8c400000 {
 			compatible = "removed-dma-pool";
 			no-map;
 			reg = <0 0x8c400000 0 0x10000>;
 		};
 
-		pil_ipa_gsi_mem: ipa_gsi_region@0x8c410000 {
+		pil_ipa_gsi_mem: ipa_gsi_region@8c410000 {
 			compatible = "removed-dma-pool";
 			no-map;
 			reg = <0 0x8c410000 0 0x5000>;
 		};
 
-		pil_gpu_mem: gpu_region@0x8c415000 {
+		pil_gpu_mem: gpu_region@8c415000 {
 			compatible = "removed-dma-pool";
 			no-map;
 			reg = <0 0x8c415000 0 0x2000>;
 		};
-
-		pil_adsp_mem: adsp_region@0x8c500000 {
+	
+		pil_adsp_mem: pil_adsp_region@8c500000 {
 			compatible = "removed-dma-pool";
 			no-map;
 			reg = <0 0x8c500000 0 0x1a00000>;
 		};
 
-		wlan_fw_region: wlan_fw_region@0x8df00000 {
-			compatible = "removed-dma-pool";
-			no-map;
+		wlan_fw_region: wlan_fw_region@8df00000 {
+			compatible = "shared-dma-pool";
 			reg = <0 0x8df00000 0 0x100000>;
 		};
 
-		pil_modem_mem: modem_region@0x8e000000 {
+		pil_modem_mem: modem_region@8e000000 {
 			compatible = "removed-dma-pool";
 			no-map;
 			reg = <0 0x8e000000 0 0x7800000>;
 		};
 
-		pil_video_mem: video_region@0x95800000 {
+		pil_video_mem: pil_video_region@95800000 {
 			compatible = "removed-dma-pool";
 			no-map;
 			reg = <0 0x95800000 0 0x500000>;
 		};
 
-		pil_cdsp_mem: cdsp_region@0x95d00000 {
+		pil_cdsp_mem: cdsp_region@95d00000 {
 			compatible = "removed-dma-pool";
 			no-map;
 			reg = <0 0x95d00000 0 0x800000>;
 		};
 
-		pil_mba_mem: mba_region@0x96500000 {
+		pil_mba_mem: pil_mba_region@96500000 {
 			compatible = "removed-dma-pool";
 			no-map;
 			reg = <0 0x96500000 0 0x200000>;
 		};
 
-		pil_slpi_mem: slpi_region@0x96700000 {
+		pil_slpi_mem: pil_slpi_region@96700000 {
 			compatible = "removed-dma-pool";
 			no-map;
 			reg = <0 0x96700000 0 0x1400000>;
 		};
 
-		pil_spss_mem: pil_spss_region@0x97b00000 {
+		pil_spss_mem: pil_spss_region@97b00000 {
 			compatible = "removed-dma-pool";
 			no-map;
 			reg = <0 0x97b00000 0 0x100000>;
@@ -664,6 +659,14 @@
 			size = <0 0x2000000>;
 			linux,cma-default;
 		};
+
+		pil_mdata_buf_mem: pil_mdata_buf_mem_region {
+			compatible = "shared-dma-pool";
+			no-map;
+			alloc-ranges = <0 0x00000000 0 0xffffffff>;
+			alignment = <0 0x200000>;
+			size = <0 0x200000>;
+		};
 	};
 };
 
@@ -679,92 +682,9 @@
 	ranges = <0 0 0 0xffffffff>;
 	compatible = "simple-bus";
 
-	jtag_mm0: jtagmm@7040000 {
-		compatible = "qcom,jtagv8-mm";
-		reg = <0x7040000 0x1000>;
-		reg-names = "etm-base";
-
-		clocks = <&clock_aop QDSS_CLK>;
-		clock-names = "core_clk";
-
-		qcom,coresight-jtagmm-cpu = <&CPU0>;
-	};
-
-	jtag_mm1: jtagmm@7140000 {
-		compatible = "qcom,jtagv8-mm";
-		reg = <0x7140000 0x1000>;
-		reg-names = "etm-base";
-
-		clocks = <&clock_aop QDSS_CLK>;
-		clock-names = "core_clk";
-
-		qcom,coresight-jtagmm-cpu = <&CPU1>;
-	};
-
-	jtag_mm2: jtagmm@7240000 {
-		compatible = "qcom,jtagv8-mm";
-		reg = <0x7240000 0x1000>;
-		reg-names = "etm-base";
-
-		clocks = <&clock_aop QDSS_CLK>;
-		clock-names = "core_clk";
-
-		qcom,coresight-jtagmm-cpu = <&CPU2>;
-	};
-
-	jtag_mm3: jtagmm@7340000 {
-		compatible = "qcom,jtagv8-mm";
-		reg = <0x7340000 0x1000>;
-		reg-names = "etm-base";
-
-		clocks = <&clock_aop QDSS_CLK>;
-		clock-names = "core_clk";
-
-		qcom,coresight-jtagmm-cpu = <&CPU3>;
-	};
-
-	jtag_mm4: jtagmm@7440000 {
-		compatible = "qcom,jtagv8-mm";
-		reg = <0x7440000 0x1000>;
-		reg-names = "etm-base";
-
-		clocks = <&clock_aop QDSS_CLK>;
-		clock-names = "core_clk";
-
-		qcom,coresight-jtagmm-cpu = <&CPU4>;
-	};
-
-	jtag_mm5: jtagmm@7540000 {
-		compatible = "qcom,jtagv8-mm";
-		reg = <0x7540000 0x1000>;
-		reg-names = "etm-base";
-
-		clocks = <&clock_aop QDSS_CLK>;
-		clock-names = "core_clk";
-
-		qcom,coresight-jtagmm-cpu = <&CPU5>;
-	};
-
-	jtag_mm6: jtagmm@7640000 {
-		compatible = "qcom,jtagv8-mm";
-		reg = <0x7640000 0x1000>;
-		reg-names = "etm-base";
-
-		clocks = <&clock_aop QDSS_CLK>;
-		clock-names = "core_clk";
-
-		qcom,coresight-jtagmm-cpu = <&CPU6>;
-	};
-
-	jtag_mm7: jtagmm@7740000 {
-		compatible = "qcom,jtagv8-mm";
-		reg = <0x7740000 0x1000>;
-		reg-names = "etm-base";
-
-		clocks = <&clock_aop QDSS_CLK>;
-		clock-names = "core_clk";
-
-		qcom,coresight-jtagmm-cpu = <&CPU7>;
+	pil_mdata_buf_dev {
+		compatible = "_dummy_";
+		memory-region = <&pil_mdata_buf_mem>;
 	};
 
 	intc: interrupt-controller@17a00000 {
@@ -914,7 +834,8 @@
 			#size-cells = <0>;
 			qcom,can-sleep;
 		};
-
+		/*
+		 * TODO: ServiceTask#100911
 		qcom,pmi8998-debug@2 {
 			compatible = "qcom,spmi-pmic";
 			reg = <0x2 SPMI_USID>;
@@ -930,7 +851,7 @@
 			#size-cells = <0>;
 			qcom,can-sleep;
 		};
-
+		*/
 		qcom,pm8005-debug@4 {
 			compatible = "qcom,spmi-pmic";
 			reg = <0x4 SPMI_USID>;
