@@ -1,35 +1,16 @@
-# SPDX-License-Identifier: GPL-2.0
+dtb-$(CONFIG_ARCH_QCOM) += starqlte/sdm845-sec-starqlte-chn-r14.dtb \
+	starqlte/sdm845-sec-starqlte-chn-r14_v2.1.dtb
 
-SAMSUMG_DTB := arch/$(SRCARCH)/boot/dts/samsung
-QCOM_DTB := ../vendor/qcom
-
-define __sec_dtbo_build
-dtbo-$(2) += $(1)
-$(1)-base := $(3)
-endef
-
-define sec_dtbo_build
-$(foreach dtbo, $(1), $(eval $(call __sec_dtbo_build, $(dtbo),$(2),$(3))))
-endef
-
-# KONA BASE DTB
-SEC_KONA_BASE_DTB := $(QCOM_DTB)/kona.dtb $(QCOM_DTB)/kona-v2.dtb $(QCOM_DTB)/kona-v2.1.dtb
-
-ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
-
-SEC_KONA_SPU_DTBO := \
-		common/kona-sec-system-update-overlay.dtbo
-
-$(eval $(call sec_dtbo_build, \
-		$(SEC_KONA_SPU_DTBO),$(CONFIG_ARCH_KONA),$(SEC_KONA_BASE_DTB)))
-
-endif
-
-dts-dirs += x1q
-dts-dirs += y2q
-dts-dirs += z3q
-
+ifeq ($(CONFIG_ARM64),y)
 always          := $(dtb-y)
 subdir-y        := $(dts-dirs)
+else
+targets += dtbs
+targets += $(addprefix ../, $(dtb-y))
 
-clean-files := *.dtb *.reverse.dts *.dtbo
+$(obj)/../%.dtb: $(src)/%.dts FORCE
+        $(call if_changed_dep,dtc)
+
+dtbs: $(addprefix $(obj)/../,$(dtb-y))
+endif
+clean-files := *.dtb *.reverse.dts
