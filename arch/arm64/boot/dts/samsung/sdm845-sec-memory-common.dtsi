@@ -99,6 +99,11 @@
                         reg = <0x0 0xA1400000 0x0 0x00800000>;
                 };
 
+                sec_debug_rdx_bootdev: sec_debug_rdx_bootdev@0 {
+                        no-ship;
+                        reg = <0x1 0x00000000 0x0 0x0AD00000>;
+                };
+
                 /* sec_debug_low_region reserves 4MB
                    This region is reserved if only debuglevel low */
                 sec_debug_low_region: sec_debug_low_region@0 {
