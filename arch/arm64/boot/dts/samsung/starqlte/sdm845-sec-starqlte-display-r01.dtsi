@@ -182,6 +182,9 @@
 		label = "ss_dsi_panel_S6E3HA6_AMB577MQ01_WQHD";
 		qcom,display-type = "primary";
 
+		qcom,dsi-ctrl-num = <0>;
+		qcom,dsi-phy-num = <0>;
+
 		qcom,dsi-ctrl = <&mdss_dsi0>;
 		qcom,dsi-phy = <&mdss_dsi_phy0>;
 
@@ -208,6 +211,9 @@
 		label = "ss_dsi_panel_S6E3HA8_AMB577PX01_WQHD";
 		qcom,display-type = "primary";
 
+		qcom,dsi-ctrl-num = <0>;
+		qcom,dsi-phy-num = <0>;
+
 		qcom,dsi-ctrl = <&mdss_dsi0>;
 		qcom,dsi-phy = <&mdss_dsi_phy0>;
 
@@ -233,6 +239,9 @@
 		compatible = "qcom,dsi-display";
 		label = "ss_dsi_panel_PBA_BOOTING_FHD";
 		qcom,display-type = "primary";
+
+		qcom,dsi-ctrl-num = <0>;
+		qcom,dsi-phy-num = <0>;
 
 		qcom,dsi-ctrl = <&mdss_dsi0>;
 		qcom,dsi-phy = <&mdss_dsi_phy0>;

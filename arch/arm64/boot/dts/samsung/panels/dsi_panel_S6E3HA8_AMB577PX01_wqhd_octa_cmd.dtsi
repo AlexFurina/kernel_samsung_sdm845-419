@@ -69,6 +69,9 @@
 		qcom,mdss-dsi-interleave-mode = <0>;
 		qcom,mdss-dsi-panel-type = "dsi_cmd_mode";
 
+		qcom,dsi-ctrl-num = <0>;
+		qcom,dsi-phy-num = <0>;
+
 		/*qcom,mdss-dsi-te-check-enable; */
 		qcom,mdss-dsi-te-using-te-pin;
 		qcom,mdss-dsi-te-pin-select = <1>;
