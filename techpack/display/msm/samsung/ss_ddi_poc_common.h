@@ -25,6 +25,9 @@
 #define POC_ERASE_32KB	(32768)
 #define POC_ERASE_64KB	(65536)
 
+/* Register to cnotrol POC */
+#define POC_CTRL_REG	0xEB
+
 #define DEBUG_POC_CNT 4096
 
 enum FLASH_READ_CASE {

@@ -251,6 +251,7 @@ struct sde_kms {
 	bool genpd_init;
 
 	struct msm_gem_address_space *aspace[MSM_SMMU_DOMAIN_MAX];
+	struct sde_power_client *core_client;
 	struct sde_power_event *power_event;
 
 	/* directory entry for debugfs */

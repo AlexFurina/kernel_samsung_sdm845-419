@@ -85,6 +85,8 @@ struct COPR_CD {
 };
 
 struct COPR {
+	u32 read_addr;
+	u32 read_size;
 	int ver;
 	int copr_on;
 

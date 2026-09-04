@@ -442,6 +442,8 @@ struct display_status {
 
 struct hmt_status {
 	unsigned int hmt_on;
+	unsigned int hmt_reverse;
+	unsigned int hmt_is_first;
 
 	int hmt_bl_level;
 	int candela_level_hmt;
@@ -796,6 +798,16 @@ struct ss_exclusive_mipi_tx {
 
 struct mdnie_info {
 	int support_mdnie;
+	int support_mdnie_lite;
+	int support_mdnie_trans_dimming;
+	int mdnie_tune_size1;
+	int mdnie_tune_size2;
+	int mdnie_tune_size3;
+	int mdnie_tune_size4;
+	int mdnie_tune_size5;
+	int mdnie_tune_size6;
+	int mdnie_lcd_on_notifiy;
+	int mdnie_disable_trans_dimming;
 	int support_trans_dimming;
 	int disable_trans_dimming;
 
@@ -836,6 +848,9 @@ struct brightness_info {
 	int pac_cd_idx;		// scaled idx
 
 	u8 elvss_value[2];	// elvss otp value
+
+	int elvss_value1;
+	int elvss_value2;
 
 	u8 *irc_otp;		// irc otp value
 
@@ -1090,6 +1105,9 @@ struct panel_func {
 	int (*samsung_gct_read)(struct samsung_display_driver_data *vdd);
 	int (*samsung_gct_write)(struct samsung_display_driver_data *vdd);
 
+	/* Self display */
+	int (*samsung_self_display_init)(struct samsung_display_driver_data *vdd);
+
 	/* GraySpot Test */
 	void (*samsung_gray_spot)(struct samsung_display_driver_data *vdd, int enable);
 
@@ -1205,6 +1223,9 @@ struct ss_brightness_info {
 	int temperature;
 	int lux;			// current lux via sysfs
 	int acl_status;
+	int auto_brightness;
+
+	int samsung_support_irc;
 
 	/* TODO: rm below flags.. instead, use the other exist values...
 	 * after move init seq. (read ddi id, hbm, etc..) to probe timing,
