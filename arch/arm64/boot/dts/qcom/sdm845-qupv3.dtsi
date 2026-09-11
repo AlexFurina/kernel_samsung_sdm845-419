@@ -456,7 +456,7 @@
 		pinctrl-names = "default", "sleep";
 		pinctrl-0 = <&qupv3_se12_2uart_active>;
 		pinctrl-1 = <&qupv3_se12_2uart_sleep>;
-		interrupts = <GIC_SPI 357 0>;
+		interrupts = <GIC_SPI 357 IRQ_TYPE_LEVEL_HIGH>;
 		qcom,wrapper-core = <&qupv3_1>;
 		status = "disabled";
 	};

@@ -258,7 +258,7 @@
 		pinctrl-names = "default", "sleep";
 		pinctrl-0 = <&qupv3_se6_cts_active &qupv3_se6_rtstx_active &qupv3_se6_rx_active>;
 		pinctrl-1 = <&qupv3_se6_cts_sleep &qupv3_se6_rtstx_sleep &qupv3_se6_rx_sleep>;
-		interrupts-extended = <&intc GIC_SPI 607 0>;
+		interrupts-extended = <&intc GIC_SPI 607 IRQ_TYPE_LEVEL_HIGH>;
 		status = "okay";
 		qcom,bus-mas = <MSM_BUS_MASTER_BLSP_1>;
 	};
