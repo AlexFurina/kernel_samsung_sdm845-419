@@ -64,7 +64,7 @@
 		pinctrl-names = "default", "sleep";
 		pinctrl-0 = <&qupv3_se9_2uart_active>;
 		pinctrl-1 = <&qupv3_se9_2uart_sleep>;
-		interrupts = <GIC_SPI 354 0>;
+		interrupts = <GIC_SPI 354 IRQ_TYPE_LEVEL_HIGH>;
 		qcom,wrapper-core = <&qupv3_1>;
 		status = "ok";
 		always-on-clock;
@@ -85,7 +85,7 @@
 		compatible = "qcom,mcd";
 		qcom,ce-hw-instance = <0>;
 		qcom,ce-device = <0>;
-		interrupts = <0 640 0>;
+		interrupts = <GIC_SPI 640 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "mcd_irq";
 		clock-names = "core_clk_src", "core_clk",
 				"iface_clk", "bus_clk";
