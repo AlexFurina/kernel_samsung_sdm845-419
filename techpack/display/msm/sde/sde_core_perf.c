@@ -23,7 +23,7 @@
 #include "sde_encoder.h"
 #include "sde_core_perf.h"
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 #include "ss_dsi_panel_common.h"
 #endif
 
@@ -256,6 +256,22 @@ static void _sde_core_perf_calc_crtc(struct sde_kms *kms,
 			perf->bw_ctl[SDE_POWER_HANDLE_DBUS_ID_LLCC],
 			perf->max_per_pipe_ib[SDE_POWER_HANDLE_DBUS_ID_EBI],
 			perf->bw_ctl[SDE_POWER_HANDLE_DBUS_ID_EBI]);
+
+	/* add debug log (case 03231188) */
+	if (sde_crtc_get_intf_mode(crtc, crtc->state) == INTF_MODE_VIDEO &&
+		(DIV_ROUND_UP_ULL(perf->bw_ctl[SDE_POWER_HANDLE_DBUS_ID_MNOC], 1000) > kms->catalog->perf.max_bw_high ||
+		DIV_ROUND_UP_ULL(perf->bw_ctl[SDE_POWER_HANDLE_DBUS_ID_LLCC], 1000) > kms->catalog->perf.max_bw_high ||
+		DIV_ROUND_UP_ULL(perf->bw_ctl[SDE_POWER_HANDLE_DBUS_ID_EBI], 1000) > kms->catalog->perf.max_bw_high))
+		SDE_ERROR(
+			"crtc=%d clk_rate=%llu core_ib=%llu core_ab=%llu llcc_ib=%llu llcc_ab=%llu mem_ib=%llu mem_ab=%llu max_bw_high=%u\n",
+				crtc->base.id, perf->core_clk_rate,
+				perf->max_per_pipe_ib[SDE_POWER_HANDLE_DBUS_ID_MNOC],
+				perf->bw_ctl[SDE_POWER_HANDLE_DBUS_ID_MNOC],
+				perf->max_per_pipe_ib[SDE_POWER_HANDLE_DBUS_ID_LLCC],
+				perf->bw_ctl[SDE_POWER_HANDLE_DBUS_ID_LLCC],
+				perf->max_per_pipe_ib[SDE_POWER_HANDLE_DBUS_ID_EBI],
+				perf->bw_ctl[SDE_POWER_HANDLE_DBUS_ID_EBI],
+				kms->catalog->perf.max_bw_high);
 }
 
 int sde_core_perf_crtc_check(struct drm_crtc *crtc,
@@ -932,7 +948,7 @@ static void _sde_core_perf_crtc_update_check(struct drm_crtc *crtc,
 	}
 }
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 bool flag_boost_mdpclk_cwb;
 bool flag_boost_mdpclk_screenrecorder;
 #endif
@@ -1024,7 +1040,7 @@ void sde_core_perf_crtc_update(struct drm_crtc *crtc,
 	if (update_clk) {
 		clk_rate = _sde_core_perf_get_core_clk_rate(kms);
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 		{
 			/* This W/A will be replaced with QCT patch from case 04395530
 			 * During VRR transition, keep max SDE core clock.
@@ -1304,7 +1320,7 @@ int sde_core_perf_debugfs_init(struct sde_core_perf *perf,
 }
 #endif
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 int ss_set_max_sde_core_clk(struct drm_device *ddev)
 {
 	struct sde_kms *sde_kms;
@@ -1379,7 +1395,7 @@ static ssize_t sysfs_sde_core_perf_mode_read(struct device *dev,
 static ssize_t sysfs_sde_core_perf_mode_write(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct samsung_display_driver_data *vdd = ss_get_vdd(PRIMARY_DISPLAY_NDX);
+//	struct samsung_display_driver_data *vdd = ss_get_vdd(PRIMARY_DISPLAY_NDX);
 	struct drm_device *ddev;
 	struct sde_kms *sde_kms;
 	struct sde_core_perf *perf;
@@ -1387,7 +1403,7 @@ static ssize_t sysfs_sde_core_perf_mode_write(struct device *dev,
 	u32 perf_mode = 0;
 	int ret = 0;
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	/* This causes unexpected mdp clock issue.. disable the function until fix the issue.. */
 	LCD_INFO("skip sysfs perf_mode\n");
 	return count;

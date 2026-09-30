@@ -632,7 +632,7 @@ error:
 	return rc;
 }
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 extern void tcon_prepare(void);
 #endif
 
@@ -659,7 +659,7 @@ static int dsi_display_link_clk_enable(struct dsi_link_clks *clks,
 			goto error;
 		}
 	}
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	if ((l_type & DSI_LINK_LP_CLK) && (ctrl_count==1))
 		tcon_prepare();
 #endif
@@ -686,7 +686,7 @@ static int dsi_display_link_clk_enable(struct dsi_link_clks *clks,
 						rc);
 				goto error_disable_master;
 			}
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 			tcon_prepare();
 #endif
 		}
@@ -751,7 +751,7 @@ error:
 	return rc;
 }
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 extern void force_sustain_lp11_for_sleep(void);
 #endif
 
@@ -778,7 +778,7 @@ static int dsi_display_link_clk_disable(struct dsi_link_clks *clks,
 			continue;
 
 		if (l_type & DSI_LINK_LP_CLK) {
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 			force_sustain_lp11_for_sleep();
 #endif
 			rc = dsi_link_lp_clk_stop(&clk->lp_clks);

@@ -25,8 +25,6 @@ Copyright (C) 2012, Samsung Electronics. All rights reserved.
  *
  */
 
-#include <linux/kernel.h>
-
 #ifndef _SAMSUNG_DSI_SMART_DIMMING_H_
 #define _SAMSUNG_DSI_SMART_DIMMING_H_
 
@@ -35,22 +33,17 @@ struct smartdim_conf {
 	void (*generate_hbm_gamma)(struct smartdim_conf *conf, int cd, char *str);
 	void (*init)(struct smartdim_conf *conf);
 	void (*print_aid_log)(struct smartdim_conf *conf);
-	void (*get_min_lux_table)(char *str, int size);
-
-
 	struct SMART_DIM *psmart;
+
+	void (*get_min_lux_table)(char *str, int size);
 	char *mtp_buffer;
-	char *center_gamma_60hs;
-	char *center_gamma_120hs;
 	int *lux_tab;
 	int lux_tabsize;
 	unsigned int man_id;
 	char panel_revision;
-	int rr;	/* refresh rate*/
-	bool sot_hs;	/* sot normal/hs */
 
 	/* HBM interpolation */
-	unsigned char *hbm_payload;
+	char *hbm_payload;
 };
 
 /* Define the gamma */

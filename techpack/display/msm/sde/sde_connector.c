@@ -560,8 +560,8 @@ static int _sde_connector_update_power_locked(struct sde_connector *c_conn)
 	if (mode != c_conn->last_panel_power_mode && c_conn->ops.set_power) {
 #else /* SS Modify */
 	if (mode != c_conn->last_panel_power_mode && c_conn->ops.set_power
-		&& !(mode == SDE_MODE_DPMS_OFF && c_conn->last_panel_power_mode == SDE_MODE_DPMS_ON)
-		&& !(mode == SDE_MODE_DPMS_ON && c_conn->last_panel_power_mode == SDE_MODE_DPMS_OFF)) {
+	&& !(mode == SDE_MODE_DPMS_OFF && c_conn->last_panel_power_mode == SDE_MODE_DPMS_ON)
+	&& !(mode == SDE_MODE_DPMS_ON && c_conn->last_panel_power_mode == SDE_MODE_DPMS_OFF)) {
 #endif
 		display = c_conn->display;
 		set_power = c_conn->ops.set_power;
@@ -780,9 +780,10 @@ int sde_connector_pre_kickoff(struct drm_connector *connector)
 	struct sde_connector *c_conn;
 	struct sde_connector_state *c_state;
 	struct msm_display_kickoff_params params;
-	struct dsi_display *display;
+//	struct dsi_display *display;
 	int rc;
 #if defined(CONFIG_DISPLAY_SAMSUNG)
+	struct dsi_display *display;
 	struct samsung_display_driver_data *vdd;
 	u32 finger_mask_state;
 #endif
@@ -821,10 +822,23 @@ int sde_connector_pre_kickoff(struct drm_connector *connector)
 
 	params.rois = &c_state->rois;
 	params.hdr_meta = &c_state->hdr_meta;
+#if defined(CONFIG_DISPLAY_SAMSUNG)
+	/* SAMSUNG_FINGERPRINT */
+	display = c_conn->display;
+	vdd = display->panel->panel_private;
+	finger_mask_state = sde_connector_get_property(c_conn->base.state,
+			CONNECTOR_PROP_FINGERPRINT_MASK);
+	vdd->finger_mask_updated = false;
+	if (finger_mask_state != vdd->finger_mask) {
+		SDE_ERROR("[FINGER MASK]updated finger mask mode %d\n", finger_mask_state);
+		vdd->finger_mask_updated = true;
+		vdd->finger_mask = finger_mask_state;
+	}
+#endif
 
 	SDE_EVT32_VERBOSE(connector->base.id);
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	if (c_conn->connector_type == DRM_MODE_CONNECTOR_DSI) {
 		/* SAMSUNG_FINGERPRINT */
 		vdd = display->panel->panel_private;
@@ -924,7 +938,7 @@ void sde_connector_helper_bridge_enable(struct drm_connector *connector)
 {
 	struct sde_connector *c_conn = NULL;
 	struct dsi_display *display;
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	struct samsung_display_driver_data *vdd;
 #endif
 
@@ -951,7 +965,7 @@ void sde_connector_helper_bridge_enable(struct drm_connector *connector)
 		c_conn->bl_device->props.power = FB_BLANK_UNBLANK;
 		c_conn->bl_device->props.state &= ~BL_CORE_FBBLANK;
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 		vdd = display->panel->panel_private;
 
 		if (vdd->vrr.support_vrr_based_bl &&
@@ -2239,8 +2253,7 @@ static void _sde_connector_report_panel_dead(struct sde_connector *conn,
 
 #if defined(CONFIG_DISPLAY_SAMSUNG)
 	{
-		struct dsi_display *display = conn->display;
-		struct samsung_display_driver_data *vdd = display->panel->panel_private;
+		struct samsung_display_driver_data *vdd = samsung_get_vdd();
 		vdd->panel_dead = true;
 	}
 #endif
@@ -2614,7 +2627,7 @@ static int _sde_connector_install_properties(struct drm_device *dev,
 		CONNECTOR_PROP_BL_SCALE);
 
 #if defined(CONFIG_DISPLAY_SAMSUNG)
-		/* SAMSUNG_FINGERPRINT */
+	/* SAMSUNG_FINGERPRINT */
 	msm_property_install_range(&c_conn->property_info, "fingerprint_mask",
 		0x0, 0, 100, 0,
 		CONNECTOR_PROP_FINGERPRINT_MASK);

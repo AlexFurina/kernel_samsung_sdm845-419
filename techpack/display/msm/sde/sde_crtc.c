@@ -2929,7 +2929,7 @@ err:
 	return ret;
 }
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 bool flag_screenrecorder;
 extern bool flag_boost_mdpclk_screenrecorder;
 #endif
@@ -2966,7 +2966,7 @@ static void _sde_crtc_wait_for_fences(struct drm_crtc *crtc)
 	 * if its fence has timed out. Call input fence wait multiple times if
 	 * fence wait is interrupted due to interrupt call.
 	 */
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	flag_screenrecorder = false;
 #endif
 
@@ -2984,7 +2984,7 @@ static void _sde_crtc_wait_for_fences(struct drm_crtc *crtc)
 	}
 	SDE_ATRACE_END("plane_wait_input_fence");
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	if (flag_screenrecorder && !flag_boost_mdpclk_screenrecorder) {
 		SDE_INFO("screenrecorder: boost up sde core clk\n");
 		flag_boost_mdpclk_screenrecorder = true;
@@ -3645,6 +3645,7 @@ int sde_crtc_reset_hw(struct drm_crtc *crtc, struct drm_crtc_state *old_state,
 #include "dsi_panel.h"
 #include "ss_dsi_panel_common.h"
 
+#if 0
 void ss_dfps_control(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -3676,6 +3677,7 @@ void ss_dfps_control(struct drm_crtc *crtc)
 		display = NULL;
 	}
 }
+#endif
 #endif
 
 void sde_crtc_commit_kickoff(struct drm_crtc *crtc,
@@ -3775,7 +3777,7 @@ void sde_crtc_commit_kickoff(struct drm_crtc *crtc,
 		_sde_crtc_blend_setup(crtc, old_state, false);
 	}
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	ss_dfps_control(crtc);
 #endif
 
@@ -3812,7 +3814,7 @@ static int _sde_crtc_vblank_enable_no_lock(
 	struct drm_encoder *enc;
 
 	if (!sde_crtc) {
-#if defined(CONFIG_DISPLAY_SAMSUNG) // case 04436106
+#if 0 // case 04436106
 		SS_XLOG_VSYNC(0x1111);
 #endif
 		SDE_ERROR("invalid crtc\n");
@@ -3830,7 +3832,7 @@ static int _sde_crtc_vblank_enable_no_lock(
 		mutex_lock(&sde_crtc->crtc_lock);
 		if (ret < 0)
 		{
-#if defined(CONFIG_DISPLAY_SAMSUNG) // case 04436106
+#if 0 // case 04436106
 			SS_XLOG_VSYNC(0x2222);
 #endif
 			return ret;
@@ -5005,7 +5007,7 @@ int sde_crtc_vblank(struct drm_crtc *crtc, bool en)
 
 	if (!crtc) {
 		SDE_ERROR("invalid crtc\n");
-#if defined(CONFIG_DISPLAY_SAMSUNG) // case 04436106
+#if 0 // case 04436106
 		SS_XLOG_VSYNC(0x1111);
 #endif
 		return -EINVAL;

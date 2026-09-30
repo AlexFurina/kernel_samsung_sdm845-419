@@ -91,7 +91,7 @@ static void convert_to_dsi_mode(const struct drm_display_mode *drm_mode,
 	if (drm_mode->flags & DRM_MODE_FLAG_CMD_MODE_PANEL)
 		dsi_mode->panel_mode = DSI_OP_CMD_MODE;
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	dsi_mode->timing.sot_hs_mode = ss_is_sot_hs_from_drm_mode(drm_mode);
 #endif
 }
@@ -148,7 +148,7 @@ void dsi_convert_to_drm_mode(const struct dsi_display_mode *dsi_mode,
 	if (dsi_mode->panel_mode == DSI_OP_CMD_MODE)
 		drm_mode->flags |= DRM_MODE_FLAG_CMD_MODE_PANEL;
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	snprintf(drm_mode->name, DRM_DISPLAY_MODE_LEN, "%dx%dx%dx%d%s%s",
 			drm_mode->hdisplay, drm_mode->vdisplay,
 			drm_mode->vrefresh, drm_mode->clock,
@@ -443,7 +443,7 @@ static bool dsi_bridge_mode_fixup(struct drm_bridge *bridge,
 			(!(dsi_mode.dsi_mode_flags & DSI_MODE_FLAG_DYN_CLK)) &&
 			(!crtc_state->active_changed ||
 			 display->is_cont_splash_enabled)) {
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 			if (display->panel->panel_initialized || display->is_cont_splash_enabled) {
 				struct samsung_display_driver_data *vdd = display->panel->panel_private;
 				struct vrr_info *vrr = &vdd->vrr;

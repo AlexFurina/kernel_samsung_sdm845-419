@@ -518,7 +518,7 @@ int msm_atomic_prepare_fb(struct drm_plane *plane,
 	return msm_framebuffer_prepare(new_state->fb, kms->aspace);
 }
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 int ss_get_vdd_ndx_from_state(struct drm_atomic_state *old_state);
 #endif
 
@@ -561,7 +561,7 @@ static void complete_commit(struct msm_commit *c)
 
 	msm_atomic_wait_for_commit_done(dev, state);
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	ndx = ss_get_vdd_ndx_from_state(state);
 
 	if (!kms->funcs->ss_callback) {
@@ -710,7 +710,7 @@ int msm_atomic_commit(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	ndx = ss_get_vdd_ndx_from_state(state);
 
 	/* TODO: check if _sde_encoder_trigger_start() is suitable

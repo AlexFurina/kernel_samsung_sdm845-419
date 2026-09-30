@@ -353,7 +353,7 @@ int dsi_panel_power_on(struct dsi_panel *panel);
 int dsi_panel_power_off(struct dsi_panel *panel);
 int dsi_panel_tx_cmd_set(struct dsi_panel *panel, enum dsi_cmd_set_type type);
 int ss_dsi_panel_parse_cmd_sets(struct dsi_panel_cmd_set *cmd_sets,
-			struct dsi_panel *panel);
+		struct device_node *of_node);
 #endif
 
 #endif /* _DSI_PANEL_H_ */

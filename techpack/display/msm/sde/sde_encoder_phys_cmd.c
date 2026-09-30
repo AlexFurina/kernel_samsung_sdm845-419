@@ -29,6 +29,17 @@
 
 #define PP_TIMEOUT_MAX_TRIALS	4
 
+#if defined(CONFIG_DISPLAY_SAMSUNG)
+/*
+ * Incase of AOD, 1frame takes 33ms(30FPS)
+ * So we need to wait more time than normal case
+ */
+#define CTL_START_TIMEOUT_MS	100
+#else
+/* wait for 2 vyncs only */
+#define CTL_START_TIMEOUT_MS	32
+#endif
+
 extern int global_flag;
 
 /*
@@ -262,7 +273,7 @@ static void sde_encoder_phys_cmd_te_rd_ptr_irq(void *arg, int irq_idx)
 	struct sde_encoder_phys_cmd_te_timestamp *te_timestamp;
 	unsigned long lock_flags;
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	struct drm_connector *conn = phys_enc ? phys_enc->connector : NULL;
 	struct samsung_display_driver_data *vdd = NULL;
 	enum ss_display_ndx ndx;
@@ -316,7 +327,7 @@ static void sde_encoder_phys_cmd_te_rd_ptr_irq(void *arg, int irq_idx)
 		scheduler_status);
 
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	/* case 05295952: detect MDP clock underflow that causes line noise */
 	if (vdd && info[0].wr_ptr_line_count > (phys_enc->cached_mode.vdisplay/3) &&
 			info[0].wr_ptr_line_count < phys_enc->cached_mode.vdisplay)
@@ -334,7 +345,7 @@ static void sde_encoder_phys_cmd_te_rd_ptr_irq(void *arg, int irq_idx)
 	if (phys_enc->parent_ops.handle_vblank_virt)
 		phys_enc->parent_ops.handle_vblank_virt(phys_enc->parent,
 			phys_enc);
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 skip_call_handle_vblank_virt:
 	if (ndx >= 0 && vdd) {
 		if(ctl)
@@ -607,6 +618,10 @@ static int _sde_encoder_phys_cmd_handle_ppdone_timeout(
 
 #if defined(CONFIG_DISPLAY_SAMSUNG)
 	SS_XLOG(cmd_enc->pp_timeout_report_cnt);
+#endif
+
+#if 0
+	SS_XLOG(cmd_enc->pp_timeout_report_cnt);
 
 	phys_enc->sde_kms->base.funcs->ss_callback(conn->index, SS_EVENT_CHECK_TE, NULL);
 	inc_dpui_u32_field(DPUI_KEY_QCT_PPTO, 1);
@@ -647,10 +662,25 @@ static int _sde_encoder_phys_cmd_handle_ppdone_timeout(
 
 		SDE_EVT32(DRMID(phys_enc->parent), SDE_EVTLOG_FATAL);
 		sde_encoder_helper_unregister_irq(phys_enc, INTR_IDX_RDPTR);
+#if defined(CONFIG_DISPLAY_SAMSUNG)
+	phys_enc->sde_kms->base.funcs->ss_callback(phys_enc->parent->dev,
+		SS_EVENT_CHECK_TE, (void *)phys_enc);
+	inc_dpui_u32_field(DPUI_KEY_QCT_PPTO, 1);
+#endif
+
+#if defined(CONFIG_DISPLAY_SAMSUNG) && defined(CONFIG_SAMSUNG_PRODUCT_SHIP)
+	SDE_DBG_DUMP("all", "dbg_bus", "vbif_dbg_bus");
+	if (sec_debug_is_enabled()) SDE_DBG_DUMP("panic");
+#elif defined(CONFIG_DISPLAY_SAMSUNG)
+	SDE_DBG_DUMP("all", "dbg_bus", "vbif_dbg_bus", "panic");
+#else
+	SDE_DBG_DUMP("all", "dbg_bus", "vbif_dbg_bus");
+#endif
+
 		if (sde_kms_is_secure_session_inprogress(phys_enc->sde_kms))
 			SDE_DBG_DUMP("secure", "all", "dbg_bus");
-		else
-			SDE_DBG_DUMP("all", "dbg_bus", "vbif_dbg_bus");
+//		else
+//			SDE_DBG_DUMP("all", "dbg_bus", "vbif_dbg_bus");
 		sde_encoder_helper_register_irq(phys_enc, INTR_IDX_RDPTR);
 	}
 
@@ -970,7 +1000,7 @@ static int sde_encoder_phys_cmd_control_vblank_irq(
 	SDE_EVT32(DRMID(phys_enc->parent), phys_enc->hw_pp->idx - PINGPONG_0,
 			enable, refcount);
 
-#if defined(CONFIG_DISPLAY_SAMSUNG) // case 04436106
+#if 0 // case 04436106
 	SS_XLOG_VSYNC(enable, refcount);
 #endif
 
@@ -994,7 +1024,7 @@ end:
 		SDE_EVT32(DRMID(phys_enc->parent),
 				phys_enc->hw_pp->idx - PINGPONG_0,
 				enable, refcount, SDE_EVTLOG_ERROR);
-#if defined(CONFIG_DISPLAY_SAMSUNG) // case 04436106
+#if 0 // case 04436106
 		SS_XLOG_VSYNC(0xbad, enable, refcount, ret);
 #endif
 	}
@@ -1191,7 +1221,7 @@ static void sde_encoder_phys_cmd_tearcheck_config(
 	 * disable sde hw generated TE signal, since hw TE will arrive first.
 	 * Only caveat is if due to error, we hit wrap-around.
 	 */
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	/* 3 * 16.6ms based on mode->vtotal
 	 note : need to multiply current_fps / 60 to match 16ms regardless of current fps
 	*/
@@ -1893,7 +1923,7 @@ static void _sde_encoder_autorefresh_disable_seq1(
 		udelay(AUTOREFRESH_SEQ1_POLL_TIME);
 		if ((trial * AUTOREFRESH_SEQ1_POLL_TIME)
 				> (KICKOFF_TIMEOUT_MS * USEC_PER_MSEC)) {
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 			struct samsung_display_driver_data *vdd = ss_get_vdd(PRIMARY_DISPLAY_NDX);
 			vdd->is_autorefresh_fail = true;
 			LCD_INFO("set is_autorefresh_fail true\n");

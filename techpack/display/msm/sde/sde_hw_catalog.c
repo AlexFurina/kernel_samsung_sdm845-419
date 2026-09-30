@@ -4549,6 +4549,26 @@ struct sde_mdss_cfg *sde_hw_catalog_init(struct drm_device *dev, u32 hw_rev)
 
 #if defined(CONFIG_DISPLAY_SAMSUNG)
 	{
+		struct samsung_display_driver_data *vdd = samsung_get_vdd();
+		struct sde_kms *sde_kms = NULL;
+
+		if (IS_ERR_OR_NULL(vdd))
+			goto done;
+
+		sde_kms = GET_SDE_KMS(vdd);
+
+		if (IS_ERR_OR_NULL(sde_kms) ||
+				IS_ERR_OR_NULL(sde_kms->base.funcs->ss_callback))
+			goto done;
+
+		sde_kms->base.funcs->ss_callback(sde_kms->dev,
+				SS_EVENT_SDE_HW_CATALOG_INIT, (void *)sde_cfg);
+	}
+done:
+#endif
+
+#if 0
+	{
 		/* sde_hw_catalog_init() be called once for dual dsi,
 		 * and two vdds share same sde_kms pointer.
 		 * get sde_kms from primary vdd, then call ss_callback

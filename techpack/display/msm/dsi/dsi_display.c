@@ -215,6 +215,7 @@ int dsi_display_set_backlight(struct drm_connector *connector,
 	int rc = 0;
 #if defined(CONFIG_DISPLAY_SAMSUNG)
 	struct samsung_display_driver_data *vdd;
+	void *panel_private;
 #endif
 
 	if (dsi_display == NULL || dsi_display->panel == NULL)
@@ -223,6 +224,24 @@ int dsi_display_set_backlight(struct drm_connector *connector,
 	panel = dsi_display->panel;
 
 #if defined(CONFIG_DISPLAY_SAMSUNG)
+	vdd = panel->panel_private;
+
+	if (vdd->dtsi_data.flash_gamma_support &&
+			!vdd->panel_br_info.flash_data.init_done) {
+		vdd->bl_level = bl_lvl;
+		LCD_ERR("flash_gamme not ready, save level(%d) \n", bl_lvl);
+		return rc;
+	}
+
+	/* Folder model, panel->panel_private maybe changed when backlight thread is running.
+	* it may cause DEBUG_LOCKS_WARN_ON(!lock->owner) and deadlock.
+	* DON'T use panel->panel_private dirrectly, to avoid unblance mutex lock.
+	*/
+	panel_private = panel->panel_private;
+	ss_set_exclusive_tx_lock_from_qct(panel_private, true);
+#endif
+
+#if 0
 	vdd = panel->panel_private;
 
 	if (vdd->br_info.flash_gamma_support &&
@@ -275,7 +294,7 @@ int dsi_display_set_backlight(struct drm_connector *connector,
 error:
 	mutex_unlock(&panel->panel_lock);
 #if defined(CONFIG_DISPLAY_SAMSUNG)
-	ss_set_exclusive_tx_lock_from_qct(panel->panel_private, false);
+	ss_set_exclusive_tx_lock_from_qct(panel_private, false);
 #endif
 	return rc;
 }
@@ -1102,11 +1121,13 @@ int dsi_display_set_power(struct drm_connector *connector,
 		return -EINVAL;
 	}
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	LCD_INFO("%s ++\n", power_mode == SDE_MODE_DPMS_LP1 ? "LP1" :
 			power_mode == SDE_MODE_DPMS_LP2 ? "LP2" : "NO_LP");
 	SDE_EVT32(power_mode);
 #endif
+	pr_err("%s ++\n", power_mode == SDE_MODE_DPMS_LP1 ? "LP1" :
+			power_mode == SDE_MODE_DPMS_LP2 ? "LP2" : "NO_LP");
 	switch (power_mode) {
 	case SDE_MODE_DPMS_LP1:
 		rc = dsi_panel_set_lp1(display->panel);
@@ -1115,14 +1136,14 @@ int dsi_display_set_power(struct drm_connector *connector,
 		rc = dsi_panel_set_lp2(display->panel);
 		break;
 	case SDE_MODE_DPMS_ON:
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	case SDE_MODE_DPMS_OFF:
 #endif
 		if ((display->panel->power_mode == SDE_MODE_DPMS_LP1) ||
 			(display->panel->power_mode == SDE_MODE_DPMS_LP2))
 			rc = dsi_panel_set_nolp(display->panel);
 		break;
-#if !defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	case SDE_MODE_DPMS_OFF:
 #endif
 	default:
@@ -5058,7 +5079,7 @@ int dsi_display_cont_splash_config(void *dsi_display)
 
 	display->is_cont_splash_enabled = true;
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	vdd = display->panel->panel_private;
 	if (display->is_cont_splash_enabled) {
 		vdd->samsung_splash_enabled = true;
@@ -5104,7 +5125,7 @@ int dsi_display_cont_splash_config(void *dsi_display)
 	/* Set the current brightness level */
 	dsi_panel_bl_handoff(display->panel);
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	ss_early_display_init(display->panel->panel_private);
 #endif
 
@@ -5159,7 +5180,7 @@ static int dsi_display_force_update_dsi_clk(struct dsi_display *display)
 {
 	int rc = 0;
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	struct samsung_display_driver_data *vdd = display->panel->panel_private;
 
 	if (vdd->panel_func.samsung_dyn_mipi_pre)
@@ -5184,7 +5205,7 @@ static int dsi_display_force_update_dsi_clk(struct dsi_display *display)
 	SDE_EVT32(0xefef, 0x1111);
 	rc = dsi_display_link_clk_force_update_ctrl(display->dsi_clk_handle);
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	mutex_unlock(&vdd->cmd_lock);
 #endif
 
@@ -5193,7 +5214,7 @@ static int dsi_display_force_update_dsi_clk(struct dsi_display *display)
 			display->cached_clk_rate);
 
 		atomic_set(&display->clkrate_change_pending, 0);
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 		if (vdd->panel_func.samsung_dyn_mipi_post)
 			vdd->panel_func.samsung_dyn_mipi_post(vdd);
 		else
@@ -7227,7 +7248,7 @@ static void dsi_display_handle_lp_rx_timeout(struct work_struct *work)
 
 	display = container_of(work, struct dsi_display, lp_rx_timeout_work);
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	if (display && display->panel &&
 	    (display->panel->panel_mode == DSI_OP_CMD_MODE) &&
 	    !atomic_read(&display->panel->esd_recovery_pending)) {
@@ -7929,7 +7950,7 @@ int dsi_display_enable(struct dsi_display *display)
 			return -EINVAL;
 		}
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 		/* Initialize samsung display driver in continuous splash mode,
 		 * like smart dimming, mdnie, and etc.
 		 */

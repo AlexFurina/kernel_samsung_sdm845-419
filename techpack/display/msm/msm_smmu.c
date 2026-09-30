@@ -275,9 +275,9 @@ static int msm_smmu_map_dma_buf(struct msm_mmu *mmu, struct sg_table *sgt,
 				dir, attrs, client->secure);
 	}
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0 // enable later
 	if (sec_debug_is_enabled() && sgt && sgt->sgl)
-		ss_smmu_debug_map(SMMU_RT_DISPLAY_DEBUG, sgt);
+		ss_smmu_debug_map(SMMU_RT_DISPLAY_DEBUG, 0, sgt);
 #endif
 	return 0;
 }
@@ -453,8 +453,9 @@ static int msm_smmu_fault_handler(struct iommu_domain *domain,
 	 */
 
 #if defined(CONFIG_DISPLAY_SAMSUNG)
-	ss_smmu_debug_log();
 	SDE_DBG_DUMP("all", "dbg_bus", "vbif_dbg_bus", "panic"); // case 03250922
+#else
+	SDE_DBG_DUMP("all", "dbg_bus", "vbif_dbg_bus");
 #endif
 
 	return rc;

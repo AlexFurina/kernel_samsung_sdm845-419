@@ -61702,4 +61702,3 @@ static char self_video_img_data[] = {
 struct smartdim_conf *smart_get_conf_S6E3HA8_AMB577PX01(void);
 struct smartdim_conf *smart_get_conf_S6E3HA8_AMB577PX01_hmt(void);
 #endif
-

@@ -62,6 +62,7 @@
 
 #if defined(CONFIG_DISPLAY_SAMSUNG)
 #include <linux/sec_debug.h>
+#include "ss_dsi_panel_common.h"
 #endif
 
 #if defined(CONFIG_DISPLAY_SAMSUNG) // case 04436106
@@ -178,7 +179,7 @@ void reg_log_dump(const char *func_name, int line_num)
 		g_init_done = true;
 	}
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	{
 		/* PBA booting skip */
 		extern int ss_panel_attached(int ndx);
@@ -294,7 +295,7 @@ static int sde_kms_enable_vblank(struct msm_kms *kms, struct drm_crtc *crtc)
 	ret = sde_crtc_vblank(crtc, true);
 	SDE_ATRACE_END("sde_kms_enable_vblank");
 
-#if defined(CONFIG_DISPLAY_SAMSUNG) // case 04436106
+#if 0 // case 04436106
 	SS_XLOG_VSYNC(ret);
 #endif
 	return ret;
@@ -302,15 +303,13 @@ static int sde_kms_enable_vblank(struct msm_kms *kms, struct drm_crtc *crtc)
 
 static void sde_kms_disable_vblank(struct msm_kms *kms, struct drm_crtc *crtc)
 {
-#if defined(CONFIG_DISPLAY_SAMSUNG) // case 04436106
 	int ret = 0;
-#endif
 
 	SDE_ATRACE_BEGIN("sde_kms_disable_vblank");
 	ret = sde_crtc_vblank(crtc, false);
 	SDE_ATRACE_END("sde_kms_disable_vblank");
 
-#if defined(CONFIG_DISPLAY_SAMSUNG) // case 04436106
+#if 0 // case 04436106
 	SS_XLOG_VSYNC(ret);
 #endif
 }
@@ -886,7 +885,7 @@ static int _sde_kms_release_splash_buffer(struct sde_kms *sde_kms,
 	for (pfn_idx = pfn_start; pfn_idx < pfn_end; pfn_idx++)
 		free_reserved_page(pfn_to_page(pfn_idx));
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	SDE_INFO("release splash buffer: addr: %x, size: %x, sec_debug: %d\n",
 			mem_addr, splash_buffer_size, sec_debug_is_enabled());
 #endif
@@ -1517,7 +1516,7 @@ static void _sde_kms_release_displays(struct sde_kms *sde_kms)
 	sde_kms->wb_displays = NULL;
 	sde_kms->wb_display_count = 0;
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	sde_kms->dsi_display_count = 0;
 	kfree(sde_kms->dsi_displays);
 	sde_kms->dsi_displays = NULL;
@@ -1964,7 +1963,7 @@ void sde_kms_timeline_status(struct drm_device *dev)
 	mutex_unlock(&dev->mode_config.mutex);
 }
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 int sde_core_perf_sysfs_init(struct sde_kms *sde_kms);
 int sde_core_perf_sysfs_deinit(struct sde_kms *sde_kms);
 #endif
@@ -1987,7 +1986,7 @@ static int sde_kms_postinit(struct msm_kms *kms)
 	if (rc)
 		SDE_ERROR("sde_debugfs init failed: %d\n", rc);
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	rc = sde_core_perf_sysfs_init(sde_kms);
 	if (rc)
 		SDE_ERROR("sde_core_sysfs init failed: %d\n", rc);
@@ -2044,7 +2043,7 @@ static void _sde_kms_hw_destroy(struct sde_kms *sde_kms,
 	/* safe to call these more than once during shutdown */
 	_sde_debugfs_destroy(sde_kms);
 	_sde_kms_mmu_destroy(sde_kms);
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	sde_core_perf_sysfs_deinit(sde_kms);
 #endif
 
@@ -2424,7 +2423,7 @@ static void sde_kms_lastclose(struct msm_kms *kms,
 	drm_atomic_state_put(state);
 
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	/*
 		There is reverse current on BLIC after panel power off.
 		This project use AOT mode(always on touch). So suspend status sustain panel power on.
@@ -2460,6 +2459,9 @@ static int sde_kms_check_secure_transition(struct msm_kms *kms,
 	bool sec_session = false, global_sec_session = false;
 	uint32_t fb_ns = 0, fb_sec = 0, fb_sec_dir = 0;
 	int i;
+#if defined(CONFIG_DISPLAY_SAMSUNG)
+	struct samsung_display_driver_data *vdd = samsung_get_vdd();
+#endif
 
 	if (!kms || !state) {
 		return -EINVAL;
@@ -2498,6 +2500,24 @@ static int sde_kms_check_secure_transition(struct msm_kms *kms,
 			global_crtc = crtc;
 		}
 	}
+
+#if defined(CONFIG_DISPLAY_SAMSUNG)
+	if (vdd->support_hall_ic) {
+		if (global_sec_session || sec_session) {
+			if (!vdd->folder_com->secure_display_mode) {
+				reinit_completion(&vdd->folder_com->secure_display_done);
+				SDE_DEBUG("enter secure display\n");
+				vdd->folder_com->secure_display_mode = true;
+			}
+		} else if (!global_sec_session && !sec_session) {
+			if (vdd->folder_com->secure_display_mode) {
+				vdd->folder_com->secure_display_mode = false;
+				SDE_DEBUG("exit secure display\n");
+				complete(&vdd->folder_com->secure_display_done);
+			}
+		}
+	}
+#endif
 
 	if (!global_sec_session && !sec_session)
 		return 0;

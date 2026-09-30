@@ -690,6 +690,24 @@ int sde_encoder_helper_register_irq(struct sde_encoder_phys *phys_enc,
 	SDE_DEBUG_PHYS(phys_enc, "registered irq %s idx: %d\n",
 			irq->name, irq->irq_idx);
 
+#if defined(CONFIG_DISPLAY_SAMSUNG)
+#define IRQS_PENDING	0x00000200
+#define istate core_internal_state__do_not_mess_with_it
+		if (intr_idx == INTR_IDX_RDPTR) {
+			struct samsung_display_driver_data *vdd = samsung_get_vdd();
+			struct irq_desc *desc;
+
+			if (vdd->te_check.te_irq > 0) {
+				vdd->te_check.te_cnt = 0;
+				desc = irq_to_desc(vdd->te_check.te_irq);
+				if (desc->istate & IRQS_PENDING) {
+					desc->istate &= ~IRQS_PENDING;
+				}
+				enable_irq(vdd->te_check.te_irq);
+			}
+		}
+#endif
+
 	return ret;
 }
 
@@ -731,6 +749,14 @@ int sde_encoder_helper_unregister_irq(struct sde_encoder_phys *phys_enc,
 	SDE_DEBUG_PHYS(phys_enc, "unregistered %d\n", irq->irq_idx);
 
 	irq->irq_idx = -EINVAL;
+
+#if defined(CONFIG_DISPLAY_SAMSUNG)
+		if (intr_idx == INTR_IDX_RDPTR) {
+			struct samsung_display_driver_data *vdd = samsung_get_vdd();
+			disable_irq(vdd->te_check.te_irq);
+			vdd->te_check.te_cnt = 0;
+		}
+#endif
 
 	return 0;
 }
@@ -1731,7 +1757,7 @@ static int _sde_encoder_dsc_setup(struct sde_encoder_virt *sde_enc,
 
 	if (sde_kms_rect_is_equal(&sde_enc->cur_conn_roi,
 			&sde_enc->prv_conn_roi))
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 		{
 			/* QC display driver prevent DMS before without first frame update (commit).
 			 * In above case, it returns error for DMS and it causes kernel panic, in result.
@@ -2028,7 +2054,7 @@ static int _sde_encoder_update_rsc_client(
 	struct sde_kms *sde_kms;
 	struct drm_encoder *enc;
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	struct samsung_display_driver_data *vdd = ss_get_vdd(PRIMARY_DISPLAY_NDX);
 #endif
 
@@ -2091,7 +2117,7 @@ static int _sde_encoder_update_rsc_client(
 			 (rsc_state == SDE_RSC_VID_STATE))
 		rsc_state = SDE_RSC_CLK_STATE;
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	if (vdd->rsc_4_frame_idle && rsc_state == SDE_RSC_CMD_STATE)
 		rsc_state = SDE_RSC_CLK_STATE;
 
@@ -2349,7 +2375,7 @@ static void sde_encoder_input_event_handler(struct input_handle *handle,
 	struct sde_encoder_virt *sde_enc = NULL;
 	struct msm_drm_thread *disp_thread = NULL;
 	struct msm_drm_private *priv = NULL;
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	struct samsung_display_driver_data *vdd = NULL;
 #endif
 
@@ -2367,7 +2393,7 @@ static void sde_encoder_input_event_handler(struct input_handle *handle,
 	priv = drm_enc->dev->dev_private;
 	sde_enc = to_sde_encoder_virt(drm_enc);
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	if (!sde_enc->crtc) {
 		SDE_DEBUG("invalid crtc\n");
 		return;
@@ -2485,7 +2511,7 @@ static int _sde_encoder_rc_kickoff(struct drm_encoder *drm_enc,
 
 	/* return if the resource control is already in ON state */
 	if (sde_enc->rc_state == SDE_ENC_RC_STATE_ON) {
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 		struct samsung_display_driver_data *vdd = ss_get_vdd(PRIMARY_DISPLAY_NDX);
 		if (vdd->vrr.support_vrr_based_bl) {
 			if (vdd->vrr.keep_max_rsc_fps &&
@@ -3314,7 +3340,7 @@ static void _sde_encoder_input_handler_register(
 	}
 }
 
-#if !defined(CONFIG_DISPLAY_SAMSUNG) /* CL 16617782 : Excessive delay in setPowerMode because of pending display off */
+#if 0 /* CL 16617782 : Excessive delay in setPowerMode because of pending display off */
 static void _sde_encoder_input_handler_unregister(
 		struct drm_encoder *drm_enc)
 {
@@ -3613,7 +3639,7 @@ static void sde_encoder_virt_disable(struct drm_encoder *drm_enc)
 	/* wait for idle */
 	sde_encoder_wait_for_event(drm_enc, MSM_ENC_TX_COMPLETE);
 
-#if !defined(CONFIG_DISPLAY_SAMSUNG) /* CL 16617782 : Excessive delay in setPowerMode because of pending display off */
+#if 0 /* CL 16617782 : Excessive delay in setPowerMode because of pending display off */
 	_sde_encoder_input_handler_unregister(drm_enc);
 #endif
 
@@ -3876,7 +3902,7 @@ void sde_encoder_register_vblank_callback(struct drm_encoder *drm_enc,
 
 	if (!drm_enc) {
 		SDE_ERROR("invalid encoder\n");
-#if defined(CONFIG_DISPLAY_SAMSUNG) // case 04436106
+#if 0 // case 04436106
 		SS_XLOG_VSYNC(0x1111);
 #endif
 		return;
@@ -4655,13 +4681,13 @@ static int _sde_encoder_wakeup_time(struct drm_encoder *drm_enc,
 	vtotal = mode->vtotal;
 	if (!mdp_transfer_time_us) {
 		/* mdp_transfer_time set to 0 for video mode */
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 		line_time = (1000000 * NSEC_PER_USEC / sde_enc->mode_info.frame_rate) / vtotal;
 #else
 		line_time = (1000000 / sde_enc->mode_info.frame_rate) / vtotal;
 #endif
 	} else {
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 		/* In case of vtotal > mdp_transfer_time_us, line_time becomes zero, and return error.
 		 * ex) In C2 HOP display 48HS mode, mdp_transfer_time_us is 7533, which is for 120HS mode,
 		 *    but vtotal is 7898, and line_time becomes zero in msec scale.
@@ -4695,7 +4721,7 @@ static int _sde_encoder_wakeup_time(struct drm_encoder *drm_enc,
 	}
 
 	cur_time = ktime_get();
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	*wakeup_time = ktime_add_ns(cur_time, time_to_vsync_us);
 #else
 	*wakeup_time = ktime_add_us(cur_time, time_to_vsync_us);
@@ -4953,7 +4979,7 @@ static int _helper_flush_qsync(struct sde_encoder_phys *phys_enc)
 	return 0;
 }
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 #include <drm/drm_encoder.h>
 int ss_get_vdd_ndx_from_state(struct drm_atomic_state *old_state)
 {
@@ -5164,7 +5190,7 @@ int sde_encoder_prepare_for_kickoff(struct drm_encoder *drm_enc,
 		}
 	}
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 			/* QC display driver prevent DMS before without first frame update (commit).
 			 * In above case, it returns error for DMS and it causes kernel panic, in result.
 			 * To prevent the limitation, allow DMS before first frame update, and sets proper DSC setting.

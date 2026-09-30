@@ -408,7 +408,7 @@ int drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
 }
 EXPORT_SYMBOL(drm_atomic_set_mode_for_crtc);
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 void ss_xlog_vrr_change_in_drm_ioctl(int vrefresh, int sot_hs_mode);
 bool ss_is_sot_hs_from_drm_mode(const struct drm_display_mode *drm_mode);
 #endif
@@ -464,7 +464,7 @@ int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
 				 state->mode.name, crtc->base.id, crtc->name,
 				 state);
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 		ss_xlog_vrr_change_in_drm_ioctl(state->mode.vrefresh,
 				ss_is_sot_hs_from_drm_mode(&state->mode));
 #endif

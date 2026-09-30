@@ -821,6 +821,7 @@ static struct notifier_block light_panel_block = {
 	.notifier_call = light_panel_state_change,
 };
 
+#if 0
 static int __init uhid_init(void)
 {
     ss_panel_notifier_register(&light_panel_block);
@@ -835,6 +836,7 @@ static void __exit uhid_exit(void)
 
 module_init(uhid_init);
 module_exit(uhid_exit);
+#endif
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Herrmann <dh.herrmann@gmail.com>");

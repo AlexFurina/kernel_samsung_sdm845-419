@@ -9,7 +9,7 @@
 #include "dsi_hw.h"
 #include "dsi_phy_hw.h"
 #include "dsi_catalog.h"
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 #include "ss_dsi_panel_common.h"
 #endif
 
@@ -216,7 +216,7 @@ void dsi_phy_hw_v4_0_commit_phy_timing(struct dsi_phy_hw *phy,
 	DSI_W32(phy, DSIPHY_CMN_TIMING_CTRL_13, timing->lane_v4[13]);
 }
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 /* To store driving streng for Motto tool  */
 void dsi_phy_hw_v4_0_store_str(struct dsi_phy_hw *phy, u32 *val)
 {
@@ -347,7 +347,7 @@ static void dsi_phy_hw_cphy_enable(struct dsi_phy_hw *phy,
 			glbl_rescode_bot_ctrl);
 	DSI_W32(phy, DSIPHY_CMN_GLBL_LPTX_STR_CTRL, 0x55);
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 {
 	struct samsung_display_driver_data *vdd;
 
@@ -460,7 +460,7 @@ static void dsi_phy_hw_dphy_enable(struct dsi_phy_hw *phy,
 	u32 glbl_rescode_top_ctrl = 0;
 	u32 glbl_rescode_bot_ctrl = 0;
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	struct samsung_display_driver_data *vdd;
 
 	if (phy->display_index == PRIMARY_DISPLAY_NDX) {
@@ -490,7 +490,7 @@ static void dsi_phy_hw_dphy_enable(struct dsi_phy_hw *phy,
 		glbl_rescode_bot_ctrl = 0x3c;
 	}
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	/* Set if Motto values had set */
 	if (vdd->motto_info.motto_swing) {
 		glbl_hstx_str_ctrl_0 = vdd->motto_info.motto_swing;
@@ -542,7 +542,7 @@ static void dsi_phy_hw_dphy_enable(struct dsi_phy_hw *phy,
 
 	DSI_W32(phy, DSIPHY_CMN_LANE_CTRL0, 0x1F);
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
+#if 0
 	/* Set if Motto values had set */
 	if (vdd->motto_info.motto_emphasis) {
 		DSI_W32(phy, DSIPHY_CMN_CTRL_2, vdd->motto_info.cmn_ctrl2_curr);
