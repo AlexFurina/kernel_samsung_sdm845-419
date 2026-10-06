@@ -2130,6 +2130,7 @@ char *cmd_set_prop_map[SS_DSI_CMD_SET_MAX] = {
 	"samsung,poc_pre_write_tx_cmds_revA",
 	"samsung,poc_write_loop_start_tx_cmds_revA",
 	"samsung,poc_write_loop_data_add_tx_cmds_revA",
+	"samsung,poc_write_loop_data_tx_cmds_revA",
 	"samsung,poc_write_loop_1byte_tx_cmds_revA",
 	"samsung,poc_write_loop_256byte_tx_cmds_revA",
 	"samsung,poc_write_loop_end_tx_cmds_revA",
