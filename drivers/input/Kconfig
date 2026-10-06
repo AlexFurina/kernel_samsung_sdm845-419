@@ -212,6 +212,14 @@ config INPUT_SEC_SECURE_TOUCH
 
 	  If unsure, say N.
 
+config INPUT_TOUCHSCREEN_TCLM
+	bool "touchscreen tclm"
+	depends on I2C
+	help
+	  Say Y here if you need to use tclm.
+
+	  If unsure, say N.
+
 config INPUT_KEYCOMBO
 	bool "Key combo"
 	depends on INPUT
