@@ -80,7 +80,7 @@
 			sde_ub_det_active: sde_ub_det_active {
 				mux {
 					pins = "gpio50";
-					function = "ub_detect";
+					function = "gpio";
 				};
 
 				config {
@@ -93,7 +93,7 @@
 			sde_ub_det_suspend: sde_ub_det_suspend {
 				mux {
 					pins = "gpio50";
-					function = "ub_detect";
+					function = "gpio";
 				};
 
 				config {
@@ -174,79 +174,6 @@
 &ss_dsi_panel_S6E3HA8_AMB577PX01_WQHD {
 	samsung,esd-irq-gpio1 = <&pm8998_gpios 5 0>; // DISP_DET
 	samsung,delayed-display-on = <1>;
-};
-
-&soc {
-	ss_dsi_panel_S6E3HA6_AMB577MQ01_WQHD_display: qcom,dsi-display@13 {
-		compatible = "qcom,dsi-display";
-		label = "ss_dsi_panel_S6E3HA6_AMB577MQ01_WQHD";
-		qcom,display-type = "primary";
-
-		qcom,dsi-ctrl = <&mdss_dsi0>;
-		qcom,dsi-phy = <&mdss_dsi_phy0>;
-
-		clocks = <&mdss_dsi0_pll BYTECLK_MUX_0_CLK>,
-			<&mdss_dsi0_pll PCLK_MUX_0_CLK>;
-		clock-names = "mux_byte_clk", "mux_pixel_clk";
-
-		pinctrl-names = "panel_active", "panel_suspend";
-		pinctrl-0 = <&sde_dsi_active &sde_te_active &sde_ub_det_active>;
-		pinctrl-1 = <&sde_dsi_suspend &sde_te_suspend &sde_ub_det_suspend>;
-		qcom,platform-te-gpio = <&tlmm 10 0>;
-		qcom,platform-reset-gpio = <&tlmm 6 0>;
-
-		qcom,dsi-panel = <&ss_dsi_panel_S6E3HA6_AMB577MQ01_WQHD>;
-
-		vci-supply = <&s2dos05_l4>; /* 3.0V, S2DOS05 LDO4 */
-		vdd3-supply = <&s2dos05_l1>; /* 1.8V, S2DOS05 LDO1 */
-		vddr-supply = <&s2dos05_buck1>; /* 1.6V, S2DOS05 buck */
-	};
-
-	/* TODO: check qcom,dsi-display@number ... */
-	ss_dsi_panel_S6E3HA8_AMB577PX01_WQHD_display: qcom,dsi-display@15 {
-		compatible = "qcom,dsi-display";
-		label = "ss_dsi_panel_S6E3HA8_AMB577PX01_WQHD";
-		qcom,display-type = "primary";
-
-		qcom,dsi-ctrl = <&mdss_dsi0>;
-		qcom,dsi-phy = <&mdss_dsi_phy0>;
-
-		clocks = <&mdss_dsi0_pll BYTECLK_MUX_0_CLK>,
-			<&mdss_dsi0_pll PCLK_MUX_0_CLK>;
-		clock-names = "mux_byte_clk", "mux_pixel_clk";
-
-		pinctrl-names = "panel_active", "panel_suspend";
-		pinctrl-0 = <&sde_dsi_active &sde_te_active &sde_ub_det_active>;
-		pinctrl-1 = <&sde_dsi_suspend &sde_te_suspend &sde_ub_det_suspend>;
-		qcom,platform-te-gpio = <&tlmm 10 0>;
-		qcom,platform-reset-gpio = <&tlmm 6 0>;
-
-		qcom,dsi-panel = <&ss_dsi_panel_S6E3HA8_AMB577PX01_WQHD>;
-
-		vci-supply = <&s2dos05_l4>; /* 3.0V, S2DOS05 LDO4 */
-		vdd3-supply = <&s2dos05_l1>; /* 1.8V, S2DOS05 LDO1 */
-		vddr-supply = <&s2dos05_buck1>; /* 1.6V, S2DOS05 buck */
-	};
-
-	/* PBA */
-	ss_dsi_panel_PBA_BOOTING_FHD_display: qcom,dsi-display@14 {
-		compatible = "qcom,dsi-display";
-		label = "ss_dsi_panel_PBA_BOOTING_FHD";
-		qcom,display-type = "primary";
-
-		qcom,dsi-ctrl = <&mdss_dsi0>;
-		qcom,dsi-phy = <&mdss_dsi_phy0>;
-		clocks = <&mdss_dsi0_pll BYTECLK_MUX_0_CLK>,
-			<&mdss_dsi0_pll PCLK_MUX_0_CLK>;
-		clock-names = "src_byte_clk", "src_pixel_clk";
-
-		pinctrl-names = "panel_active", "panel_suspend";
-		pinctrl-0 = <&sde_dsi_active &sde_te_active &sde_ub_det_active>;
-		pinctrl-1 = <&sde_dsi_suspend &sde_te_suspend &sde_ub_det_suspend>;
-		qcom,platform-te-gpio = <&tlmm 10 0>;
-
-		qcom,dsi-panel = <&ss_dsi_panel_PBA_BOOTING_FHD>;
-	};
 };
 
 &mdss_mdp {
@@ -371,4 +298,33 @@
 					00 20 00 00
 					00 20 00 00
 					00 20 00 80];
+};
+
+&sde_dsi {
+	qcom,dsi-ctrl = <&mdss_dsi0>;
+	qcom,dsi-phy = <&mdss_dsi_phy0>;
+
+	clocks = <&mdss_dsi0_pll BYTECLK_MUX_0_CLK>,
+		 <&mdss_dsi0_pll PCLK_MUX_0_CLK>;
+	clock-names = "mux_byte_clk0", "mux_pixel_clk0";
+
+	pinctrl-names = "panel_active", "panel_suspend";
+	pinctrl-0 = <&sde_dsi_active &sde_te_active &sde_ub_det_active>;
+	pinctrl-1 = <&sde_dsi_suspend &sde_te_suspend &sde_ub_det_suspend>;
+
+	qcom,platform-reset-gpio = <&tlmm 6 0>;
+
+	vci-supply = <&s2dos05_l4>;
+	vdd3-supply = <&s2dos05_l1>;
+	vddr-supply = <&s2dos05_buck1>;
+
+	qcom,dsi-default-panel = <&ss_dsi_panel_S6E3HA6_AMB577MQ01_WQHD>;
+};
+
+&sde_dp {
+	status = "disabled";
+};
+
+&mdss_dp_pll {
+        status = "disabled";
 };
