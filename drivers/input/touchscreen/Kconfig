@@ -1339,8 +1339,8 @@ config TOUCHSCREEN_DUAL_FOLDABLE
 	help
 	  This enables support for Dual TSP.
 
-source "drivers/input/touchscreen/sec_ts/y79a/Kconfig"
-source "drivers/input/touchscreen/sec_ts/y79a_c/Kconfig"
+source "drivers/input/touchscreen/sec_ts/Kconfig"
+source "drivers/input/touchscreen/sec_ts/y771/Kconfig"
 source "drivers/input/touchscreen/zinitix/ztw522/Kconfig"
 source "drivers/input/touchscreen/st/Kconfig"
 source "drivers/input/touchscreen/synaptics_dsx/Kconfig"
