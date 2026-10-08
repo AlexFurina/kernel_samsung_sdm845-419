@@ -24,7 +24,7 @@
 #include "sdm845-sec-starqlte-pinctrl-r14.dtsi"
 #include "sdm845-sec-starqlte-display-r01.dtsi"
 #include "sdm845-sec-starqlte-displayport-r00.dtsi"
-#include "sdm845-sec-starqlte-fingerprint-sensor-r05.dtsi"
+//#include "sdm845-sec-starqlte-fingerprint-sensor-r05.dtsi"
 #include "sdm845-sec-starqlte-mst-r00.dtsi"
 #include "sdm845-camera-sensor-starqlte-r06.dtsi"
 
