@@ -107,7 +107,7 @@
 					"pm8998_gpio23";
 			gpio-controller;
 			#gpio-cells = <2>;
-			qcom,gpios-disallowed = <3 15 20 22 24 25 26>;
+			qcom,gpios-disallowed = <20 22 24 25 26>;
 		};
 
 		pm8998_coincell: qcom,coincell@2800 {
