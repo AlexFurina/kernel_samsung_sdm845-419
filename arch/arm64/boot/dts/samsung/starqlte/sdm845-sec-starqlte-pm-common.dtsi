@@ -238,7 +238,8 @@
 
 	/* Thermistor table */
 	sec_thermistor@0 {
-		compatible = "samsung,sec-ap-thermistor";
+		compatible = "samsung,sec-thermistor";
+		thermistor_name = "sec-ap-thermistor";
 		qcom,therm-vadc = <&pm8998_vadc>;
 		status = "okay";
 		adc_channel = <77>;
@@ -271,7 +272,8 @@
 
 	/* PA Thermistor table */
 	sec_thermistor@2 {
-		compatible = "samsung,sec-pa-thermistor";
+		compatible = "samsung,sec-thermistor";
+		thermistor_name = "sec-pa-thermistor";
 		qcom,therm-vadc = <&pmcobalt_vadc>;
 		status = "okay";
 		adc_channel = <79>;
@@ -304,7 +306,8 @@
 
 	/* WiFi Thermistor table */
 	sec_thermistor@3 {
-		compatible = "samsung,sec-wf-thermistor";
+		compatible = "samsung,sec-thermistor";
+		thermistor_name = "sec-wf-thermistor";
 		qcom,therm-vadc = <&pm8998_vadc>;
 		status = "okay";
 		adc_channel = <82>;
