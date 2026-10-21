@@ -334,7 +334,6 @@
 	};
 };
 
-#if 0
 &qupv3_se2_spi {
 	status = "ok";
 	/delete-property/ pinctrl-1;
@@ -351,7 +350,6 @@
 		 */
 	};
 };
-#endif
 
 &qupv3_se10_i2c {
 	status = "ok";
