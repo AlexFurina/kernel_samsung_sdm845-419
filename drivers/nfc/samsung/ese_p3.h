@@ -15,7 +15,6 @@
 #define DEFAULT_BUFFER_SIZE 260
 
 #define FEATURE_ESE_WAKELOCK
-/* #define FEATURE_ESE_SPI_DUMMY_ENABLE */
 
 #define P3_MAGIC 0xED
 #define P3_SET_PWR _IOW(P3_MAGIC, 0x01, unsigned long)
@@ -46,10 +45,6 @@
 /* To swing(shake) cs */
 #define P3_SWING_CS _IOW(P3_MAGIC, 0x0D, unsigned long)
 
-#ifdef CONFIG_ESE_COLDRESET
-#define P3_WR_RESET _IOW(P3_MAGIC, 0xE, __s32)
-#endif
-
 #ifdef CONFIG_COMPAT
 /*#define P3_RW_SPI_DATA_32 _IOWR(P3_MAGIC, 0x07, unsigned int)*/
 struct spip3_ioc_transfer_32 {
@@ -69,5 +64,3 @@ struct p3_spi_platform_data {
 	unsigned int irq_gpio;
 	unsigned int rst_gpio;
 };
-
-extern unsigned int lpcharge; /*for power off charge*/
