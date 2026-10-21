@@ -78,15 +78,10 @@
 };
 
 &pm8998_adc_tm {
-        chan@54 { /* PM8998 GPIO 10 */
-                label = "wpc_therm";
-                reg = <0x54>;
-                qcom,pre-div-channel-scaling = <0>;
-                qcom,calibration-type = "absolute";
-                qcom,scale-function = <0>;
-                qcom,hw-settle-time = <2>;
-                qcom,btm-channel-number = <0x88>;
-        };
+	status = "okay";
+	io-channels = <&pm8998_vadc 0x83>, <&pm8998_vadc 0x4c>,
+		      <&pm8998_vadc 0x4d>, <&pm8998_vadc 0x4f>,
+		      <&pm8998_vadc 0x51>;
 };
 
 &soc {

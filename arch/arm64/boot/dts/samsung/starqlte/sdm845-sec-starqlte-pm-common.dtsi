@@ -238,9 +238,17 @@
 
 	/* Thermistor table */
 	sec_thermistor@0 {
-		compatible = "samsung,sec-ap-thermistor";
+		compatible = "samsung,sec-thermistor";
 		qcom,therm-vadc = <&pm8998_vadc>;
 		status = "okay";
+		thermistor_name = "sec-ap-thermistor";
+		id = <0>;
+
+		io-channels = <&pm8998_vadc 0x4d>;
+		io-channel-names = "ap_therm";
+		io-channel-ranges;
+		use_iio_processed;
+
 		adc_channel = <77>;
 		adc_array = <882 919 956 993 1030 1067 1093 1119 1145 1171
 				1195 1222 1249 1276 1303 1332 1363 1394 1425 1456
@@ -271,9 +279,17 @@
 
 	/* PA Thermistor table */
 	sec_thermistor@2 {
-		compatible = "samsung,sec-pa-thermistor";
-		qcom,therm-vadc = <&pmcobalt_vadc>;
+		compatible = "samsung,sec-thermistor";
+		qcom,therm-vadc = <&pm8998_vadc>;
 		status = "okay";
+		thermistor_name = "sec-pa-thermistor";
+		id = <2>;
+
+		io-channels = <&pm8998_vadc 0x4f>;
+		io-channel-names = "pa_therm";
+		io-channel-ranges;
+		use_iio_processed;
+
 		adc_channel = <79>;
 		adc_array = <1056 1094 1132 1170 1208 1247 1282 1317 1352 1387
 				1423 1464 1505 1546 1587 1630 1677 1724 1771 1818
@@ -304,9 +320,17 @@
 
 	/* WiFi Thermistor table */
 	sec_thermistor@3 {
-		compatible = "samsung,sec-wf-thermistor";
+		compatible = "samsung,sec-thermistor";
 		qcom,therm-vadc = <&pm8998_vadc>;
 		status = "okay";
+		thermistor_name = "sec-wf-thermistor";
+		id = <3>;
+
+		io-channels = <&pm8998_vadc 0x52>;
+		io-channel-names = "wf_therm";
+		io-channel-ranges;
+		use_iio_processed;
+
 		adc_channel = <82>;
 		adc_array = <1002 1039 1076 1112 1149 1186 1236 1286 1335 1385
 					 1435 1487 1540 1592 1645 1697 1760 1823 1886 1949
@@ -422,3 +446,12 @@
   	};
 };
 
+&pm8998_vadc {
+	wf_therm@52 {
+		reg = <0x52>;
+		label = "wf_therm";
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+		qcom,pre-scaling = <1 1>;
+	};
+};

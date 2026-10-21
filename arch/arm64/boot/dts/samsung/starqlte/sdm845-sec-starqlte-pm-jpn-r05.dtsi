@@ -12,7 +12,8 @@
 
 &soc {
 	sec_thermistor@1 {
-		compatible = "samsung,sec-cf-thermistor";
+		compatible = "samsung,sec-thermistor";
+		thermistor_name = "sec-cf-thermistor";
 		qcom,therm-vadc = <&pm8998_vadc>;
 		status = "okay";
 		adc_channel = <89>;
