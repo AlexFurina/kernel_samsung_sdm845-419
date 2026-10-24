@@ -258,6 +258,12 @@ struct q6asm_cal_info {
 	int app_type;
 };
 
+struct audio_session {
+	struct audio_client *ac;
+	spinlock_t session_lock;
+	struct mutex mutex_lock_per_session;
+};
+
 void q6asm_audio_client_free(struct audio_client *ac);
 
 struct audio_client *q6asm_audio_client_alloc(app_cb cb, void *priv);

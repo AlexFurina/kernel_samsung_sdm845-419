@@ -137,6 +137,7 @@ do {                                                    \
 #define GND_MIC_USBC_SWAP_THRESHOLD 2
 #define WCD_FAKE_REMOVAL_MIN_PERIOD_MS 100
 #define HS_VREF_MIN_VAL 1400
+#define HS_VREF_MIN_VAL_EXTN 1300
 #define FW_READ_ATTEMPTS 15
 #define FW_READ_TIMEOUT 4000000
 #define FAKE_REM_RETRY_ATTEMPTS 3
@@ -443,6 +444,10 @@ struct wcd_mbhc_config {
 	/* Non-FSA4480 legacy analog audio */
 	bool enable_usbc_analog_legacy;
 	struct usbc_ana_audio_config usbc_analog_cfg;
+	bool mbhc_spl_headset;
+#if defined(CONFIG_SND_SOC_WCD_MBHC_TYPEC_JACK)
+	u32 enable_usbc_analog_v2;
+#endif
 };
 
 struct wcd_mbhc_intr {
@@ -628,11 +633,25 @@ struct wcd_mbhc {
 	struct notifier_block psy_nb;
 	struct power_supply *usb_psy;
 	struct work_struct usbc_analog_work;
+	bool pullup_enable;
+	int impedance_offset;
 
 	struct wcd_mbhc_fn *mbhc_fn;
 	bool force_linein;
 	struct device_node *fsa_np;
 	struct notifier_block fsa_nb;
+
+#if defined(CONFIG_SND_SOC_WCD_MBHC_SLOW_DET)
+	int default_impedance_offset;
+	bool slow_insertion;
+#endif
+
+#if defined(CONFIG_SND_SOC_WCD_MBHC_TYPEC_JACK)
+	bool usbc_ear_out_enable;
+	int usbc_ana_en_gpio;
+	int usbc_ana_sel_gpio;
+	int usbc_jack_ctr_gpio;
+#endif
 };
 
 void wcd_mbhc_find_plug_and_report(struct wcd_mbhc *mbhc,

@@ -11,9 +11,246 @@
 #ifndef __SEC_ADAPTATION_H
 #define __SEC_ADAPTATION_H
 
+#include <dsp/apr_audio-v2.h>
+#define afe_port_param_data_v2 param_hdr_v1
+
 #include <dsp/q6afe-v2.h>
 #include <dsp/q6asm-v2.h>
 #include <dsp/q6adm-v2.h>
+
+#ifdef CONFIG_SND_SOC_MAXIM_DSM
+#include <asoc/maxim_dsm.h>
+#endif
+
+
+/*//////////////////// MAXIM SPEAKER AMP DSM SOLUTION //////////////////////*/
+/****************************************************************************/
+#ifdef CONFIG_SND_SOC_MAXIM_DSM
+
+#define AFE_PARAM_ID_GET_AFE_PARAMS 0x0001022B
+#define AFE_PARAM_ID_SET_AFE_CNTRLS 0x0001021D
+#define AFE_PARAM_GET_LOG_AFE_PARAMS 0x0001122B
+#define AFE_PARAM_ID_GET_AFE_PARAMS_R 0x1001022B
+#define AFE_PARAM_ID_SET_AFE_CNTRLS_R 0x10001065
+#define AFE_PARAM_GET_LOG_AFE_PARAMS_R 0x1001122B
+
+#define AFE_TOPOLOGY_ID_DSM_RX 0x10001061
+#define AFE_TOPOLOGY_ID_DSM_TX 0x10001060
+
+struct afe_dsm_filter_set_params_t {
+	uint32_t dcResistance;
+	uint32_t coilTemp;
+	uint32_t qualityfactor;
+	uint32_t resonanceFreq;
+	uint32_t excursionMeasure;
+	uint32_t rdcroomtemp;
+	uint32_t releasetime;
+	uint32_t coilthermallimit;
+	uint32_t excursionlimit;
+	uint32_t dsmenabled;
+	uint32_t staticgain;
+	uint32_t lfxgain;
+	uint32_t pilotgain;
+	uint32_t flagToWrite;
+	uint32_t featureSetEnable;
+	uint32_t smooFacVoltClip;
+	uint32_t highPassCutOffFactor;
+	uint32_t leadResistance;
+	uint32_t rmsSmooFac;
+	uint32_t clipLimit;
+	uint32_t thermalCoeff;
+	uint32_t qSpk;
+	uint32_t excurLoggingThresh;
+	uint32_t coilTempLoggingThresh;
+	uint32_t resFreq;
+	uint32_t resFreqGuardBand;
+	uint32_t Ambient_Temp;
+	uint32_t STL_attack_time;
+	uint32_t STL_release_time;
+	uint32_t STL_Admittance_a1;
+	uint32_t STL_Admittance_a2;
+	uint32_t STL_Admittance_b0;
+	uint32_t STL_Admittance_b1;
+	uint32_t STL_Admittance_b2;
+	uint32_t Tch1;
+	uint32_t Rth1;
+	uint32_t Tch2;
+	uint32_t Rth2;
+	uint32_t STL_Attenuation_Gain;
+	uint32_t SPT_rampDownFrames;
+	uint32_t SPT_Threshold;
+	uint32_t T_horizon;
+	uint32_t LFX_Admittance_a1;
+	uint32_t LFX_Admittance_a2;
+	uint32_t LFX_Admittance_b0;
+	uint32_t LFX_Admittance_b1;
+	uint32_t LFX_Admittance_b2;
+	uint32_t X_Max;
+	uint32_t SPK_FS;
+	uint32_t Q_GUARD_BAND;
+	uint32_t STImpedModel_a1;
+	uint32_t STImpedModel_a2;
+	uint32_t STImpedModel_b0;
+	uint32_t STImpedModel_b1;
+	uint32_t STImpedModel_b2;
+	uint32_t STImpedModel_Flag;
+	uint32_t Q_Notch;
+	uint32_t Power_Measurement;
+	uint32_t StereoCrossOverEnable;
+	uint32_t StereoCrossOverFreq;
+	uint32_t StereoCrossOverQ;
+	uint32_t power_measurement;
+	uint32_t v_validation;
+	uint32_t amp_screening;
+} __packed;
+
+/* 4.9 wire layout (no apr_hdr; the DSM structs carry their own) */
+struct afe_dsm_port_cmd_set_param {
+	u16 port_id;
+	u16 payload_size;
+	u32 payload_address_lsw;
+	u32 payload_address_msw;
+	u32 mem_map_handle;
+} __packed;
+
+struct afe_dsm_port_cmd_get_param {
+	u16 port_id;
+	u16 payload_size;
+	u32 mem_map_handle;
+	u32 payload_address_lsw;
+	u32 payload_address_msw;
+	u32 module_id;
+	u32 param_id;
+} __packed;
+
+struct afe_dsm_spkr_prot_set_command {
+	struct apr_hdr hdr;
+	struct afe_dsm_port_cmd_set_param param;
+	struct afe_port_param_data_v2 pdata;
+	struct afe_dsm_filter_set_params_t set_config;
+} __packed;
+
+struct afe_dsm_filter_get_params_t {
+	uint32_t dcResistance;
+	uint32_t coilTemp;
+	uint32_t qualityfactor;
+	uint32_t resonanceFreq;
+	uint32_t excursionMeasure;
+	uint32_t rdcroomtemp;
+	uint32_t releasetime;
+	uint32_t coilthermallimit;
+	uint32_t excursionlimit;
+	uint32_t dsmenabled;
+	uint32_t staticgain;
+	uint32_t lfxgain;
+	uint32_t pilotgain;
+	uint32_t flagToWrite;
+	uint32_t featureSetEnable;
+	uint32_t smooFacVoltClip;
+	uint32_t highPassCutOffFactor;
+	uint32_t leadResistance;
+	uint32_t rmsSmooFac;
+	uint32_t clipLimit;
+	uint32_t thermalCoeff;
+	uint32_t qSpk;
+	uint32_t excurLoggingThresh;
+	uint32_t coilTempLoggingThresh;
+	uint32_t resFreq;
+	uint32_t resFreqGuardBand;
+	uint32_t Ambient_Temp;
+	uint32_t STL_attack_time;
+	uint32_t STL_release_time;
+	uint32_t STL_Admittance_a1;
+	uint32_t STL_Admittance_a2;
+	uint32_t STL_Admittance_b0;
+	uint32_t STL_Admittance_b1;
+	uint32_t STL_Admittance_b2;
+	uint32_t Tch1;
+	uint32_t Rth1;
+	uint32_t Tch2;
+	uint32_t Rth2;
+	uint32_t STL_Attenuation_Gain;
+	uint32_t SPT_rampDownFrames;
+	uint32_t SPT_Threshold;
+	uint32_t T_horizon;
+	uint32_t LFX_Admittance_a1;
+	uint32_t LFX_Admittance_a2;
+	uint32_t LFX_Admittance_b0;
+	uint32_t LFX_Admittance_b1;
+	uint32_t LFX_Admittance_b2;
+	uint32_t X_Max;
+	uint32_t SPK_FS;
+	uint32_t Q_GUARD_BAND;
+	uint32_t STImpedModel_a1;
+	uint32_t STImpedModel_a2;
+	uint32_t STImpedModel_b0;
+	uint32_t STImpedModel_b1;
+	uint32_t STImpedModel_b2;
+	uint32_t STImpedModel_Flag;
+	uint32_t Q_Notch;
+	uint32_t Power_Measurement;
+	uint32_t StereoCrossOverEnable;
+	uint32_t StereoCrossOverFreq;
+	uint32_t StereoCrossOverQ;
+	uint32_t power_measurement;
+	uint32_t v_validation;
+	uint32_t amp_screening;
+} __packed;
+
+struct afe_dsm_spkr_prot_get_command {
+	struct apr_hdr hdr;
+	struct afe_dsm_port_cmd_get_param get_param;
+	struct afe_port_param_data_v2 pdata;
+	struct afe_dsm_filter_get_params_t res_cfg;
+} __packed;
+
+struct afe_dsm_spkr_prot_response_data {
+	uint32_t status;
+	struct afe_port_param_data_v2 pdata;
+	struct afe_dsm_filter_get_params_t res_cfg;
+} __packed;
+
+struct afe_dsm_filter_get_log_params_t {
+	uint8_t byteLogArray[BEFORE_BUFSIZE];
+	uint32_t intLogArray[BEFORE_BUFSIZE];
+	uint8_t afterProbByteLogArray[AFTER_BUFSIZE];
+	uint32_t afterProbIntLogArray[AFTER_BUFSIZE];
+	uint32_t intLogMaxArray[LOGMAX_BUFSIZE];
+} __packed;
+
+struct afe_dsm_spkr_prot_get_log_command {
+	struct apr_hdr hdr;
+	struct afe_dsm_port_cmd_get_param get_param;
+	struct afe_port_param_data_v2 pdata;
+	struct afe_dsm_filter_get_log_params_t res_log_cfg;
+} __packed;
+
+struct afe_dsm_spkr_prot_response_log_data {
+	uint32_t status;
+	struct afe_port_param_data_v2 pdata;
+	struct afe_dsm_filter_get_log_params_t res_log_cfg;
+} __packed;
+
+
+#ifdef CONFIG_SEC_SND_ADAPTATION
+int32_t dsm_read_write(void *data);
+#else
+static inline int32_t dsm_read_write(void *data)
+{
+	return -ENOSYS;
+}
+#endif /* CONFIG_SEC_SND_ADAPTATION */
+
+static inline int maxim_dsm_write(uint32_t *data, int offset, int size)
+{
+	return -ENOSYS;
+}
+
+static inline int maxim_dsm_read(int offset, int size, void *dsm_data)
+{
+	return -ENOSYS;
+}
+#endif /* CONFIG_SND_SOC_MAXIM_DSM */
 
 /****************************************************************************/
 /*//////////////////////////// AUDIO SOLUTION //////////////////////////////*/

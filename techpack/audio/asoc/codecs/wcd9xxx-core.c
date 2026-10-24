@@ -556,6 +556,8 @@ static int wcd9xxx_device_init(struct wcd9xxx *wcd9xxx)
 	struct wcd9xxx_core_resource *core_res = &wcd9xxx->core_res;
 	regmap_patch_fptr regmap_apply_patch = NULL;
 
+	dev_info(wcd9xxx->dev, "%s()\n", __func__);
+
 	mutex_init(&wcd9xxx->io_lock);
 	mutex_init(&wcd9xxx->xfer_lock);
 	mutex_init(&wcd9xxx->reset_lock);
@@ -624,6 +626,8 @@ static int wcd9xxx_device_init(struct wcd9xxx *wcd9xxx)
 		dev_err(wcd9xxx->dev, "Device wakeup init failed: %d\n", ret);
 		goto err_irq;
 	}
+
+	dev_info(wcd9xxx->dev, "%s() leave\n", __func__);
 
 	return ret;
 err_irq:
@@ -1429,6 +1433,10 @@ static int wcd9xxx_slim_probe(struct slim_device *slim)
 	if (ret) {
 		dev_err(&slim->dev, "%s: failed to get slimbus %s logical address: %d\n",
 		       __func__, wcd9xxx->slim->name, ret);
+#ifdef CONFIG_SEC_SND_DEBUG
+		panic("failed to get slimbus slimbus logical address\n");
+#endif /* CONFIG_SEC_SND_DEBUG */
+		ret = -EPROBE_DEFER;
 		goto err_reset;
 	}
 	wcd9xxx->read_dev = wcd9xxx_slim_read_device;
@@ -1443,6 +1451,9 @@ static int wcd9xxx_slim_probe(struct slim_device *slim)
 	if (ret) {
 		dev_err(&slim->dev, "%s: error, adding SLIMBUS device failed\n",
 			__func__);
+#ifdef CONFIG_SEC_SND_DEBUG
+		panic("adding SLIMBUS device failed\n");
+#endif /* CONFIG_SEC_SND_DEBUG */
 		goto err_reset;
 	}
 
@@ -1453,6 +1464,10 @@ static int wcd9xxx_slim_probe(struct slim_device *slim)
 	if (ret) {
 		dev_err(&slim->dev, "%s: failed to get slimbus %s logical address: %d\n",
 		       __func__, wcd9xxx->slim->name, ret);
+#ifdef CONFIG_SEC_SND_DEBUG
+		panic("failed to get slimbus slimbus slave logical address\n");
+#endif /* CONFIG_SEC_SND_DEBUG */
+		ret = -EPROBE_DEFER;
 		goto err_slim_add;
 	}
 	wcd9xxx_inf_la = wcd9xxx->slim_slave->laddr;
@@ -1462,6 +1477,9 @@ static int wcd9xxx_slim_probe(struct slim_device *slim)
 	if (ret) {
 		dev_err(&slim->dev, "%s: error, initializing device failed (%d)\n",
 			__func__, ret);
+#ifdef CONFIG_SEC_SND_DEBUG
+		panic("error, initializing device failed\n");
+#endif /* CONFIG_SEC_SND_DEBUG */
 		goto err_slim_add;
 	}
 #ifdef CONFIG_DEBUG_FS
@@ -1487,6 +1505,8 @@ static int wcd9xxx_slim_probe(struct slim_device *slim)
 		(void *) "slimslave_reg_dump", &codec_debug_ops);
 	}
 #endif
+
+	dev_info(&slim->dev, "%s() leave\n", __func__);
 
 	return ret;
 

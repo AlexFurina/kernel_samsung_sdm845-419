@@ -36,7 +36,16 @@ include $(srctree)/techpack/audio/config/sdm660auto.conf
 export $(shell sed 's/=.*//' $(srctree)/techpack/audio/config/sdm660auto.conf)
 endif
 ifeq ($(CONFIG_ARCH_SDM845), y)
+ifeq ($(filter y,$(CONFIG_SEC_STARQLTE_PROJECT) $(CONFIG_SEC_STAR2QLTE_PROJECT)),y)
+include $(srctree)/techpack/audio/config/sdm845_starq.conf
+else ifeq ($(CONFIG_SEC_CROWNQLTE_PROJECT), y)
+include $(srctree)/techpack/audio/config/sdm845_crownq.conf
+else ifeq ($(CONFIG_SEC_LYKANLTE_PROJECT), y)
+include $(srctree)/techpack/audio/config/sdm845_lykan.conf
+else
 include $(srctree)/techpack/audio/config/sdm845auto.conf
+endif
+export
 endif
 
 # Use USERINCLUDE when you must reference the UAPI directories only.
@@ -94,8 +103,19 @@ LINUXINCLUDE    += \
                 -include $(srctree)/techpack/audio/config/sdm660autoconf.h
 endif
 ifeq ($(CONFIG_ARCH_SDM845), y)
+ifeq ($(filter y,$(CONFIG_SEC_STARQLTE_PROJECT) $(CONFIG_SEC_STAR2QLTE_PROJECT)),y)
+LINUXINCLUDE    += \
+                -include $(srctree)/techpack/audio/config/sdm845_starqconf.h
+else ifeq ($(CONFIG_SEC_CROWNQLTE_PROJECT), y)
+LINUXINCLUDE	+= \
+                -include $(srctree)/techpack/audio/config/sdm845_crownqconf.h
+else ifeq ($(CONFIG_SEC_LYKANLTE_PROJECT), y)
+LINUXINCLUDE	+= \
+                -include $(srctree)/techpack/audio/config/sdm845_lykanconf.h
+else
 LINUXINCLUDE    += \
                 -include $(srctree)/techpack/audio/config/sdm845autoconf.h
+endif
 endif
 obj-y += soc/
 obj-y += dsp/
