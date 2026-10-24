@@ -142,6 +142,20 @@ endif
 	WCD9XXX_OBJS += audio-ext-clk-up.o
 endif
 
+
+ifdef CONFIG_SND_SOC_MAX98512
+	MAX98512_OBJS += max98512.o
+endif
+
+ifdef CONFIG_SND_SOC_MAXIM_DSM
+	MAXIM_DSM_OBJS += maxim_dsm.o
+endif
+
+ifdef CONFIG_SND_SOC_MAXIM_DSM_CAL
+	MAXIM_DSM_CAL_OBJS += maxim_dsm_cal.o
+	MAXIM_DSM_CAL_OBJS += maxim_dsm_power.o
+endif
+
 ifdef CONFIG_SND_SOC_WCD9335
 	WCD9335_OBJS += wcd9335.o
 endif
@@ -274,3 +288,13 @@ hdmi_dlkm-y := $(HDMICODEC_OBJS)
 
 # inject some build related information
 DEFINES += -DBUILD_TIMESTAMP=\"$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')\"
+
+
+obj-$(CONFIG_SND_SOC_MAX98512) += max98512_dlkm.o
+max98512_dlkm-y := $(MAX98512_OBJS)
+
+obj-$(CONFIG_SND_SOC_MAXIM_DSM) += maxim_dsm_dlkm.o
+maxim_dsm_dlkm-y := $(MAXIM_DSM_OBJS)
+
+obj-$(CONFIG_SND_SOC_MAXIM_DSM_CAL) += maxim_dsm_cal_dlkm.o
+maxim_dsm_cal_dlkm-y := $(MAXIM_DSM_CAL_OBJS)
