@@ -111,6 +111,11 @@ struct afe_port {
 	unsigned int bt_rx_port;
 	unsigned int headset_rx_port;
 	unsigned int volume_monitor_port;
+	unsigned int voice_tracking_id;
+	unsigned int amp_rx_id;
+	unsigned int amp_tx_id;
+	unsigned int rx_topology;
+	unsigned int tx_topology;
 };
 static struct afe_port afe_port;
 
@@ -3410,6 +3415,22 @@ int32_t dsm_read_write(void *data)
 	return ret;
 }
 #endif /* CONFIG_SND_SOC_MAXIM_DSM */
+
+int q6audio_get_afe_cal_validation(u16 port_id, u32 topology_id)
+{
+	int rc = 0;
+
+	if (((topology_id == afe_port.tx_topology) &&
+		(port_id == afe_port.amp_tx_id)) ||
+		((topology_id == afe_port.rx_topology) &&
+		(port_id == afe_port.amp_rx_id))) {
+		pr_info("%s: afe cal, port[0x%x] topology[0x%x]\n",
+				__func__, port_id, topology_id);
+		rc =  TRUE;
+	}
+
+	return rc;
+}
 
 static int q6audio_adaptation_platform_probe(struct snd_soc_component *component)
 {

@@ -1308,6 +1308,9 @@ static int wcd_ctrl_component_bind(struct device *dev,
 
 	wcd_cntl_debugfs_init(wcd_cntl_dir_name, cntl);
 
+	ret = 0;
+	goto done;
+
 	component = cntl->component;
 	card = component->card->snd_card;
 	snprintf(proc_name, WCD_PROCFS_ENTRY_MAX_LEN, "%s%d%s", "cpe",

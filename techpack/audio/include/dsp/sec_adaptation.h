@@ -252,6 +252,7 @@ static inline int maxim_dsm_read(int offset, int size, void *dsm_data)
 }
 #endif /* CONFIG_SND_SOC_MAXIM_DSM */
 
+int q6audio_get_afe_cal_validation(u16 port_id, u32 topology_id);
 /****************************************************************************/
 /*//////////////////////////// AUDIO SOLUTION //////////////////////////////*/
 /****************************************************************************/

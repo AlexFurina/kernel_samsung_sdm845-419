@@ -45,7 +45,6 @@ include $(srctree)/techpack/audio/config/sdm845_lykan.conf
 else
 include $(srctree)/techpack/audio/config/sdm845auto.conf
 endif
-export
 endif
 
 # Use USERINCLUDE when you must reference the UAPI directories only.
