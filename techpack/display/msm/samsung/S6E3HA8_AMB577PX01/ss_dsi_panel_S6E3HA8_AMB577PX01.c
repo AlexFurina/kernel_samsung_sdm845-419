@@ -1234,9 +1234,10 @@ static void ss_make_sdimconf_hmt(struct samsung_display_driver_data *vdd,
 	LCD_INFO("[HMT] smart dimming done!\n");
 }
 
-static int ss_samart_dimming_init_hmt(struct samsung_display_driver_data *vdd,
-		struct brightness_table *br_tbl)
+static int ss_samart_dimming_init_hmt(struct samsung_display_driver_data *vdd)
 {
+	struct brightness_table *br_tbl = &vdd->br_info.br_tbl[0];
+
 	LCD_INFO("DSI%d : ++\n", vdd->ndx);
 
 	if (IS_ERR_OR_NULL(vdd)) {
