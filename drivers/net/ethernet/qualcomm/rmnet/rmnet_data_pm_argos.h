@@ -45,7 +45,7 @@ extern void mhi_set_napi_chained_rx(struct net_device *dev, bool enable);
 #else
 static void mhi_set_napi_chained_rx(struct net_device *dev, bool enable)
 {
-    return 0;
+    return;
 }
 #endif
 
