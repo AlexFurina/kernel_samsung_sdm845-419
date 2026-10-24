@@ -1,4 +1,4 @@
-dtb-$(CONFIG_ARCH_QCOM) += starqlte/sdm845-sec-starqlte-chn-r14.dtb \
+dtb-$(CONFIG_MACH_STARQLTE_CHNZC) += starqlte/sdm845-sec-starqlte-chn-r14.dtb \
 	starqlte/sdm845-sec-starqlte-chn-r14_v2.1.dtb
 
 ifeq ($(CONFIG_ARM64),y)
