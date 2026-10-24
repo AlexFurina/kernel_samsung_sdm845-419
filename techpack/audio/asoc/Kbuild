@@ -115,7 +115,7 @@ COMMON_INC :=	-I$(AUDIO_ROOT)/$(COMMON_DIR)
 
 # for SDM845 sound card driver
 ifdef CONFIG_SND_SOC_SDM845
-	MACHINE_OBJS += sdm845.o
+	MACHINE_OBJS += sdm845.o sec_wcd_sysfs_cb.o
 endif
 
 # for SM8150 sound card driver
