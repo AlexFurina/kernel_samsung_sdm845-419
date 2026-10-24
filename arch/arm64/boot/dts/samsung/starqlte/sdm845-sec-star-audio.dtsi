@@ -70,8 +70,8 @@
 			"msm-pcm-routing", "msm-compr-dsp",
 			"msm-pcm-dsp-noirq", "q6audio-adaptation";
 
-	pinctrl-names = "quat-mi2s-active", "quat-mi2s-sleep",
-			"quat-tdm-active", "quat-tdm-sleep";
+	pinctrl-names = "quat_mi2s_enable", "quat_mi2s_disable",
+			"quat_tdm_enable", "quat_tdm_disable";
 	pinctrl-0 = <&quat_mi2s_active &quat_mi2s_sd0_active
 				&quat_mi2s_sd1_active>;
 	pinctrl-1 = <&quat_mi2s_sleep &quat_mi2s_sd0_sleep
