@@ -16,9 +16,14 @@
                  *       TZ(oem_config.xml), too.
                  */
                 /delete-node/ removed_region@85fc0000;
-                removed_region: removed_region {
+                removed_region: removed_region@85fc0000 {
                         no-map;
-                        reg = <0 0x85FC0000 0 0x5540000>;
+                        reg = <0 0x85FC0000 0 0x20000>;
+                };
+
+                sec_removed_region: removed_region@88f00000 {
+                        no-map;
+                        reg = <0 0x88F00000 0 0x2600000>;
                 };
 
                 /delete-node/ ipa_fw_region@8c400000;
