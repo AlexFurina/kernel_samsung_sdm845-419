@@ -48,10 +48,10 @@ int rtc_hctosys(void)
 	}
 
 	/*
-	 * Force update rtc year time to 2019
+	 * Force update rtc year time to 2018
 	 * (The release year of device)
 	 */
-	tm.tm_year = 119;
+	tm.tm_year = 118;
 
 	tv64.tv_sec = rtc_tm_to_time64(&tm);
 
