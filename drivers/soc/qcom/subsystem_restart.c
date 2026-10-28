@@ -33,13 +33,11 @@
 #include <linux/of.h>
 #include <asm/current.h>
 #include <linux/timer.h>
+#include <linux/of_gpio.h>
 
 #include "peripheral-loader.h"
 
 #include <linux/sec_debug.h>
-#ifdef CONFIG_SUPPORT_AK0997X
-#include <linux/of_gpio.h>
-#endif
 
 #define DISABLE_SSR 0x9889deed
 /* If set to 0x9889deed, call to subsystem_restart_dev() returns immediately */
@@ -218,6 +216,9 @@ struct subsys_device {
 	int id;
 	int restart_level;
 	int crash_count;
+#ifdef CONFIG_SENSORS_SSC
+	int ssr_reason;
+#endif
 	struct subsys_soc_restart_order *restart_order;
 	bool do_ramdump_on_put;
 	struct cdev char_dev;
@@ -276,6 +277,14 @@ static ssize_t crash_count_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", to_subsys(dev)->crash_count);
 }
 static DEVICE_ATTR_RO(crash_count);
+
+#ifdef CONFIG_SENSORS_SSC
+static ssize_t ssr_reason_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", to_subsys(dev)->ssr_reason);
+}
+#endif
 
 static ssize_t
 restart_level_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -403,6 +412,10 @@ void subsys_default_online(struct subsys_device *dev)
 }
 EXPORT_SYMBOL(subsys_default_online);
 
+#ifdef CONFIG_SENSORS_SSC
+static DEVICE_ATTR_RO(ssr_reason);
+#endif
+
 static struct attribute *subsys_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_state.attr,
@@ -410,6 +423,9 @@ static struct attribute *subsys_attrs[] = {
 	&dev_attr_restart_level.attr,
 	&dev_attr_firmware_name.attr,
 	&dev_attr_system_debug.attr,
+#ifdef CONFIG_SENSORS_SSC
+	&dev_attr_ssr_reason.attr,
+#endif
 	NULL,
 };
 
@@ -1462,6 +1478,20 @@ enum crash_status subsys_get_crash_status(struct subsys_device *dev)
 }
 EXPORT_SYMBOL(subsys_get_crash_status);
 
+#ifdef CONFIG_SENSORS_SSC
+void subsys_set_ssr_reason(struct subsys_device *dev, int ssr_reason)
+{
+	dev->ssr_reason = ssr_reason;
+}
+#endif
+
+#ifdef CONFIG_SENSORS_SSC
+int subsys_get_ssr_reason(struct subsys_device *dev)
+{
+	return dev->ssr_reason;
+}
+#endif
+
 static struct subsys_device *desc_to_subsys(struct device *d)
 {
 	struct subsys_device *device, *subsys_dev = 0;
@@ -1714,6 +1744,20 @@ err:
 	return tmp;
 }
 
+static int __get_gpio(struct subsys_desc *desc, const char *prop,
+		int *gpio)
+{
+	struct device_node *dnode = desc->dev->of_node;
+	int ret = -ENOENT;
+
+	if (of_find_property(dnode, prop, NULL)) {
+		*gpio = of_get_named_gpio(dnode, prop, 0);
+		ret = *gpio < 0 ? *gpio : 0;
+	}
+
+	return ret;
+}
+
 static int __get_irq(struct subsys_desc *desc, const char *prop,
 		unsigned int *irq)
 {
@@ -1781,17 +1825,18 @@ static int subsys_parse_devicetree(struct subsys_desc *desc)
 	if (ret && ret != -ENOENT)
 		return ret;
 
-#ifdef CONFIG_SUPPORT_AK0997X
-	desc->d_hall_rst_gpio = of_get_named_gpio(pdev->dev.of_node,
-		"qcom,gpio-d-hall-rst", 0);
-	if (desc->d_hall_rst_gpio > 0)
-		pr_info("%s, %s get digital hall rst success(%d)\n", __func__,
-			desc->name, desc->d_hall_rst_gpio);
-#endif
-
 	ret = __get_smem_state(desc, "qcom,force-stop", &desc->force_stop_bit);
 	if (ret && ret != -ENOENT)
 		return ret;
+
+#ifdef CONFIG_SENSORS_SSC
+	ret = __get_gpio(desc, "qcom,gpio-sensor-ldo", &desc->gpio_sensor_ldo);
+	if (ret && ret != -ENOENT) {
+		pr_info("%s, %s get sensor_ldo err(%d)\n", __func__,
+			desc->name, desc->gpio_sensor_ldo);
+		return ret;
+	}
+#endif
 
 	if (of_property_read_bool(pdev->dev.of_node,
 					"qcom,pil-generic-irq-handler")) {

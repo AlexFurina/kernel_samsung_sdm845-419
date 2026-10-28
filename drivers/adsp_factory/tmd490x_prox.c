@@ -16,15 +16,7 @@
 #include <linux/module.h>
 #include "adsp.h"
 #define VENDOR "AMS"
-#ifdef CONFIG_SUPPORT_TMD4907_FACTORY
-#define CHIP_ID "TMD4907"
-#else
-#define CHIP_ID "TMD4910"
-#endif
-
-#ifdef CONFIG_SUPPORT_AMS_PROX_CALIBRATION
-#define PROX_FACTORY_CAL_PATH "/efs/FactoryApp/prox_factory_cal"
-#endif
+#define CHIP_ID "TMD4906"
 
 #define PROX_AVG_COUNT 40
 #define PROX_ALERT_THRESHOLD 200
@@ -41,7 +33,6 @@ struct tmd4903_prox_data {
 	struct hrtimer prox_timer;
 	struct work_struct work_prox;
 	struct workqueue_struct *prox_wq;
-	struct adsp_data *dev_data;
 	int min;
 	int max;
 	int avg;
@@ -60,159 +51,7 @@ enum {
 	PRX_THRESHOLD_RELEASE_L,
 };
 
-enum {
-	PROX_CMD_TYPE_GET_TRIM_CHECK,
-	PROX_CMD_TYPE_GET_CAL_DATA,
-#ifdef CONFIG_SUPPORT_PROX_INIT_CAL
-	PROX_CMD_TYPE_INIT_CAL_DATA,
-#endif
-	PROX_CMD_TYPE_MAX
-};
-
 static struct tmd4903_prox_data *pdata;
-
-static int get_prox_sidx(struct adsp_data *data)
-{
-	int ret = MSG_PROX;
-#ifdef CONFIG_SUPPORT_DUAL_OPTIC
-	switch (data->fac_fstate) {
-	case FSTATE_INACTIVE:
-	case FSTATE_FAC_INACTIVE:
-		ret = MSG_PROX;
-		break;
-	case FSTATE_ACTIVE:
-	case FSTATE_FAC_ACTIVE:
-		ret = MSG_PROX_SUB;
-		break;
-	default:
-		break;
-	}
-#endif
-	return ret;
-}
-
-#ifdef CONFIG_SUPPORT_AMS_PROX_CALIBRATION
-int prox_save_cal_data_to_efs(int32_t cal_data, bool first_booting)
-{
-	struct file *factory_cal_filp = NULL;
-	mm_segment_t old_fs;
-	int flag, ret = 0;
-	umode_t mode = 0;
-
-	if (cal_data < 0) {
-		pr_err("[FACTORY] %s: cal value error: %d\n",
-			__func__, cal_data);
-		return -1;
-	}
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-
-	if (first_booting) {
-		flag = O_TRUNC | O_RDWR | O_CREAT;
-		mode = 0600;
-	} else {
-		flag = O_RDWR;
-		mode = 0660;
-	}
-
-	factory_cal_filp = filp_open(PROX_FACTORY_CAL_PATH, flag, mode);
-
-	if (IS_ERR(factory_cal_filp)) {
-		set_fs(old_fs);
-		ret = PTR_ERR(factory_cal_filp);
-		pr_err("[FACTORY] %s: open fail prox_factory_cal:%d\n",
-			__func__, ret);
-		return ret;
-	}
-
-	ret = vfs_write(factory_cal_filp, (char *)&cal_data,
-		sizeof(int32_t), &factory_cal_filp->f_pos);
-	if (ret < 0)
-		pr_err("[FACTORY] %s: fd write %d\n", __func__, ret);
-
-	filp_close(factory_cal_filp, current->files);
-	set_fs(old_fs);
-
-	return ret;
-}
-
-void prox_send_cal_data(struct adsp_data *data, bool fac_cal)
-{
-	uint16_t prox_idx = get_prox_sidx(data);
-	int32_t msg = -1, cnt = 0;
-
-	if (!fac_cal || (data->prox_cal == 0)) {
-#ifndef CONFIG_SEC_FACTORY
-		mutex_lock(&data->prox_factory_mutex);
-		adsp_unicast(&msg, sizeof(int32_t),
-			prox_idx, 0, MSG_TYPE_SET_CAL_DATA);
-		while (!(data->ready_flag[MSG_TYPE_SET_CAL_DATA] &
-			1 << prox_idx) && cnt++ < TIMEOUT_CNT)
-			usleep_range(500, 550);
-		if (cnt >= TIMEOUT_CNT)
-			pr_err("[FACTORY] %s: Timeout!!!\n", __func__);
-		data->ready_flag[MSG_TYPE_SET_CAL_DATA] &= ~(1 << prox_idx);
-		mutex_unlock(&data->prox_factory_mutex);
-		pr_info("[FACTORY] %s: Excute in-use cal: \n", __func__);
-#else
-		pr_info("[FACTORY] %s: No cal data (%d)\n",
-			__func__, data->prox_cal);
-#endif
-	} else if (data->prox_cal > 0) {
-		mutex_lock(&data->prox_factory_mutex);
-		msg = data->prox_cal;
-		adsp_unicast(&msg, sizeof(int32_t),
-			prox_idx, 0, MSG_TYPE_SET_CAL_DATA);
-		while (!(data->ready_flag[MSG_TYPE_SET_CAL_DATA] &
-			1 << prox_idx) && cnt++ < TIMEOUT_CNT)
-			usleep_range(500, 550);
-		if (cnt >= TIMEOUT_CNT)
-			pr_err("[FACTORY] %s: Timeout!!!\n", __func__);
-		data->ready_flag[MSG_TYPE_SET_CAL_DATA] &= ~(1 << prox_idx);
-		mutex_unlock(&data->prox_factory_mutex);
-		pr_info("[FACTORY] %s: Cal data: %d\n", __func__, msg);
-	} else {
-		pr_info("[FACTORY] %s: No cal data\n", __func__);
-	}
-}
-
-void prox_cal_init_work(struct adsp_data *data)
-{
-	struct file *cal_filp = NULL;
-	mm_segment_t old_fs;
-	int ret = 0;
-
-	data->prox_cal = 0;
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	cal_filp = filp_open(PROX_FACTORY_CAL_PATH, O_RDONLY, 0440);
-	if (PTR_ERR(cal_filp) == -ENOENT || PTR_ERR(cal_filp) == -ENXIO) {
-		pr_info("[FACTORY] %s : no prox_factory_cal file\n", __func__);
-		set_fs(old_fs);
-		prox_save_cal_data_to_efs(data->prox_cal, true);
-	} else if (IS_ERR(cal_filp)) {
-		pr_err("[FACTORY]: %s - filp_open error\n", __func__);
-		set_fs(old_fs);
-	} else {
-		ret = vfs_read(cal_filp, (char *)&data->prox_cal,
-			sizeof(int32_t), &cal_filp->f_pos);
-		if (ret < 0) {
-			pr_err("[FACTORY] %s: fd read fail:%d\n",
-				__func__, ret);
-			filp_close(cal_filp, current->files);
-			set_fs(old_fs);
-			return;
-		}
-
-		pr_info("[FACTORY] %s : already exist (cal data: %d)\n",
-			__func__, data->prox_cal);
-		filp_close(cal_filp, current->files);
-		set_fs(old_fs);
-	}
-}
-#endif
 
 static ssize_t prox_vendor_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
@@ -229,16 +68,8 @@ static ssize_t prox_name_show(struct device *dev,
 static ssize_t prox_raw_data_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct adsp_data *data = dev_get_drvdata(dev);
-
-	if (pdata->avgwork_check == 0) {
-		if (get_prox_sidx(data) == MSG_PROX)
-			get_prox_raw_data(&pdata->val, &pdata->offset);
-#ifdef CONFIG_SUPPORT_DUAL_OPTIC
-		else
-			get_sub_prox_raw_data(&pdata->val, &pdata->offset);	
-#endif
-	}
+	if (pdata->avgwork_check == 0)
+		get_prox_raw_data(&pdata->val, &pdata->offset);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", pdata->val);
 }
@@ -253,7 +84,6 @@ static ssize_t prox_avg_show(struct device *dev,
 static ssize_t prox_avg_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t size)
 {
-	struct adsp_data *data = dev_get_drvdata(dev);
 	int new_value;
 
 	if (sysfs_streq(buf, "0"))
@@ -270,7 +100,6 @@ static ssize_t prox_avg_store(struct device *dev,
 		cancel_work_sync(&pdata->work_prox);
 	} else {
 		pdata->avgtimer_enabled = 1;
-		pdata->dev_data = data;
 		hrtimer_start(&pdata->prox_timer,
 			ns_to_ktime(2000 * NSEC_PER_MSEC),
 			HRTIMER_MODE_REL);
@@ -288,12 +117,7 @@ static void prox_work_func(struct work_struct *work)
 	for (i = 0; i < PROX_AVG_COUNT; i++) {
 		msleep(20);
 
-		if (get_prox_sidx(pdata->dev_data) == MSG_PROX)
-			get_prox_raw_data(&pdata->val, &pdata->offset);
-#ifdef CONFIG_SUPPORT_DUAL_OPTIC
-		else
-			get_sub_prox_raw_data(&pdata->val, &pdata->offset);
-#endif
+		get_prox_raw_data(&pdata->val, &pdata->offset);
 		avg += pdata->val;
 
 		if (!i)
@@ -323,7 +147,6 @@ static enum hrtimer_restart prox_timer_func(struct hrtimer *timer)
 int get_prox_threshold(struct adsp_data *data, int type)
 {
 	uint8_t cnt = 0;
-	uint16_t prox_idx = get_prox_sidx(data);
 	int32_t msg_buf[2];
 	int ret = 0;
 
@@ -332,13 +155,13 @@ int get_prox_threshold(struct adsp_data *data, int type)
 
 	mutex_lock(&data->prox_factory_mutex);
 	adsp_unicast(msg_buf, sizeof(msg_buf),
-		prox_idx, 0, MSG_TYPE_GET_THRESHOLD);
+		MSG_PROX, 0, MSG_TYPE_GET_THRESHOLD);
 
-	while (!(data->ready_flag[MSG_TYPE_GET_THRESHOLD] & 1 << prox_idx) &&
+	while (!(data->ready_flag[MSG_TYPE_GET_THRESHOLD] & 1 << MSG_PROX) &&
 		cnt++ < TIMEOUT_CNT)
 		usleep_range(500, 550);
 
-	data->ready_flag[MSG_TYPE_GET_THRESHOLD] &= ~(1 << prox_idx);
+	data->ready_flag[MSG_TYPE_GET_THRESHOLD] &= ~(1 << MSG_PROX);
 
 	if (cnt >= TIMEOUT_CNT) {
 		pr_err("[FACTORY] %s: Timeout!!!\n", __func__);
@@ -346,7 +169,7 @@ int get_prox_threshold(struct adsp_data *data, int type)
 		return ret;
 	}
 
-	ret = data->msg_buf[prox_idx][0];
+	ret = data->msg_buf[MSG_PROX][0];
 	mutex_unlock(&data->prox_factory_mutex);
 
 	return ret;
@@ -355,7 +178,6 @@ int get_prox_threshold(struct adsp_data *data, int type)
 void set_prox_threshold(struct adsp_data *data, int type, int val)
 {
 	uint8_t cnt = 0;
-	uint16_t prox_idx = get_prox_sidx(data);
 	int32_t msg_buf[2];
 
 	msg_buf[0] = type;
@@ -363,13 +185,13 @@ void set_prox_threshold(struct adsp_data *data, int type, int val)
 
 	mutex_lock(&data->prox_factory_mutex);
 	adsp_unicast(msg_buf, sizeof(msg_buf),
-		prox_idx, 0, MSG_TYPE_SET_THRESHOLD);
+		MSG_PROX, 0, MSG_TYPE_SET_THRESHOLD);
 
-	while (!(data->ready_flag[MSG_TYPE_SET_THRESHOLD] & 1 << prox_idx) &&
+	while (!(data->ready_flag[MSG_TYPE_SET_THRESHOLD] & 1 << MSG_PROX) &&
 		cnt++ < TIMEOUT_CNT)
 		usleep_range(500, 550);
 
-	data->ready_flag[MSG_TYPE_SET_THRESHOLD] &= ~(1 << prox_idx);
+	data->ready_flag[MSG_TYPE_SET_THRESHOLD] &= ~(1 << MSG_PROX);
 
 	if (cnt >= TIMEOUT_CNT)
 		pr_err("[FACTORY] %s: Timeout!!!\n", __func__);
@@ -377,80 +199,30 @@ void set_prox_threshold(struct adsp_data *data, int type, int val)
 	mutex_unlock(&data->prox_factory_mutex);
 }
 
-static ssize_t prox_cal_show(struct device *dev,
+static ssize_t prox_cancel_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-#ifdef CONFIG_SUPPORT_AMS_PROX_CALIBRATION
 	struct adsp_data *data = dev_get_drvdata(dev);
-	return snprintf(buf, PAGE_SIZE, "%d,0,0\n", data->prox_cal);
-#else
-	return snprintf(buf, PAGE_SIZE, "0,0,0\n");
-#endif
+	int hi_thd, low_thd;
+
+	hi_thd = get_prox_threshold(data, PRX_THRESHOLD_DETECT_H);
+	low_thd = get_prox_threshold(data, PRX_THRESHOLD_RELEASE_L);
+
+	if (pdata->avgwork_check == 0)
+		get_prox_raw_data(&pdata->val, &pdata->offset);
+
+	pr_info("[FACTORY] %s: offset: %d, hi thd: %d, lo thd: %d\n", __func__,
+		pdata->offset, hi_thd, low_thd);
+
+	return snprintf(buf, PAGE_SIZE, "%d,%d,%d\n",
+			pdata->offset, hi_thd, low_thd);
 }
 
-static ssize_t prox_cal_store(struct device *dev,
+static ssize_t prox_cancel_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t size)
 {
-#ifdef CONFIG_SUPPORT_AMS_PROX_CALIBRATION
-	struct adsp_data *data = dev_get_drvdata(dev);
-	int cal_data, msg;
-	uint16_t prox_idx = get_prox_sidx(data);
-	uint8_t cnt = 0;
-	char *cur_id_str;
+	pr_info("[FACTORY] %s: skip\n", __func__);
 
-	if (sysfs_streq(buf, "1")) {
-		msg = PROX_CMD_TYPE_GET_CAL_DATA;
-#ifdef CONFIG_SUPPORT_PROX_INIT_CAL
-	} else if (sysfs_streq(buf, "0")) {
-		msg = PROX_CMD_TYPE_INIT_CAL_DATA;
-#endif
-	} else {
-		pr_err("[FACTORY] %s: wrong value\n", __func__);
-		return size;
-	}
-
-	pr_info("[FACTORY] %s: msg %d\n", __func__, msg);
-
-	mutex_lock(&data->prox_factory_mutex);
-	adsp_unicast(&msg, sizeof(int32_t), prox_idx, 0, MSG_TYPE_GET_CAL_DATA);
-
-	while (!(data->ready_flag[MSG_TYPE_GET_CAL_DATA] & 1 << prox_idx) &&
-		cnt++ < TIMEOUT_CNT)
-		msleep(20);
-
-	data->ready_flag[MSG_TYPE_GET_CAL_DATA] &= ~(1 << prox_idx);
-	cal_data = data->msg_buf[prox_idx][0];
-	mutex_unlock(&data->prox_factory_mutex);
-
-	if (cnt >= TIMEOUT_CNT) {
-		pr_err("[FACTORY] %s: Timeout!!!\n", __func__);
-	} else {
-		if (cal_data > 0) {
-			cur_id_str = kzalloc(AMS_UB_CELL_ID_INFO_STRING_LENGTH,
-					GFP_KERNEL);
-			prox_save_cal_data_to_efs(cal_data, false);
-			pr_info("[FACTORY] %s: done! %d\n", __func__, cal_data);
-			data->prox_cal = cal_data;
-			prox_send_cal_data(data, true);
-#ifdef CONFIG_SUPPORT_AMS_LIGHT_CALIBRATION
-			ams_load_ub_cell_id_from_file(UB_CELL_ID_PATH,
-				cur_id_str);
-			ams_save_ub_cell_id_to_efs(cur_id_str, false);
-#endif
-			kfree(cur_id_str);
-#ifdef CONFIG_SUPPORT_PROX_INIT_CAL
-		} else if (msg == PROX_CMD_TYPE_INIT_CAL_DATA) {
-			pr_info("[FACTORY] %s: init cal %d\n", __func__, cal_data);
-			prox_save_cal_data_to_efs(cal_data, false);
-			data->prox_cal = cal_data;
-#endif
-		} else {
-			pr_info("[FACTORY] %s: fail! %d\n", __func__, cal_data);
-		}		
-	}
-#else
-	pr_info("[FACTORY] %s: unsupported prox cal!\n", __func__);
-#endif
 	return size;
 }
 
@@ -599,13 +371,7 @@ static ssize_t barcode_emul_enable_store(struct device *dev,
 static ssize_t prox_cancel_pass_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-#ifdef CONFIG_SUPPORT_AMS_PROX_CALIBRATION
-	struct adsp_data *data = dev_get_drvdata(dev);
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", (data->prox_cal > 0) ? 1 : 0);
-#else
 	return snprintf(buf, PAGE_SIZE, "1\n");
-#endif
 }
 
 static ssize_t prox_default_trim_show(struct device *dev,
@@ -624,7 +390,6 @@ static ssize_t prox_register_read_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct adsp_data *data = dev_get_drvdata(dev);
-	uint16_t prox_idx = get_prox_sidx(data);
 	int cnt = 0;
 	int32_t msg_buf[1];
 
@@ -632,24 +397,25 @@ static ssize_t prox_register_read_show(struct device *dev,
 
 	mutex_lock(&data->prox_factory_mutex);
 	adsp_unicast(msg_buf, sizeof(msg_buf),
-		prox_idx, 0, MSG_TYPE_GET_REGISTER);
+		MSG_PROX, 0, MSG_TYPE_GET_REGISTER);
 
-	while (!(data->ready_flag[MSG_TYPE_GET_REGISTER] & 1 << prox_idx) &&
+	while (!(data->ready_flag[MSG_TYPE_GET_REGISTER] & 1 << MSG_PROX) &&
 		cnt++ < TIMEOUT_CNT)
 		usleep_range(500, 550);
 
-	data->ready_flag[MSG_TYPE_GET_REGISTER] &= ~(1 << prox_idx);
+	data->ready_flag[MSG_TYPE_GET_REGISTER] &= ~(1 << MSG_PROX);
 
 	if (cnt >= TIMEOUT_CNT)
 		pr_err("[FACTORY] %s: Timeout!!!\n", __func__);
 
-	pdata->reg_backup[1] = data->msg_buf[prox_idx][0];
-	pr_info("[FACTORY] %s: [0x%x]: %d\n",
+	pdata->reg_backup[1] = data->msg_buf[MSG_PROX][0];
+	pr_info("[FACTORY] %s: [0x%x]: 0x%x\n",
 		__func__, pdata->reg_backup[0], pdata->reg_backup[1]);
 
 	mutex_unlock(&data->prox_factory_mutex);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", pdata->reg_backup[1]);
+	return snprintf(buf, PAGE_SIZE, "[0x%x]: 0x%x\n",
+		pdata->reg_backup[0], pdata->reg_backup[1]);
 }
 
 static ssize_t prox_register_read_store(struct device *dev,
@@ -657,7 +423,7 @@ static ssize_t prox_register_read_store(struct device *dev,
 {
 	int reg = 0;
 
-	if (sscanf(buf, "%3d", &reg) != 1) {
+	if (sscanf(buf, "%3x", &reg) != 1) {
 		pr_err("[FACTORY]: %s - The number of data are wrong\n",
 			__func__);
 		return -EINVAL;
@@ -673,11 +439,10 @@ static ssize_t prox_register_write_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct adsp_data *data = dev_get_drvdata(dev);
-	uint16_t prox_idx = get_prox_sidx(data);
 	int cnt = 0;
 	int32_t msg_buf[2];
 
-	if (sscanf(buf, "%3d,%5d", &msg_buf[0], &msg_buf[1]) != 2) {
+	if (sscanf(buf, "%3x,%3x", &msg_buf[0], &msg_buf[1]) != 2) {
 		pr_err("[FACTORY]: %s - The number of data are wrong\n",
 			__func__);
 		return -EINVAL;
@@ -685,20 +450,20 @@ static ssize_t prox_register_write_store(struct device *dev,
 
 	mutex_lock(&data->prox_factory_mutex);
 	adsp_unicast(msg_buf, sizeof(msg_buf),
-		prox_idx, 0, MSG_TYPE_SET_REGISTER);
+		MSG_PROX, 0, MSG_TYPE_SET_REGISTER);
 
-	while (!(data->ready_flag[MSG_TYPE_SET_REGISTER] & 1 << prox_idx) &&
+	while (!(data->ready_flag[MSG_TYPE_SET_REGISTER] & 1 << MSG_PROX) &&
 		cnt++ < TIMEOUT_CNT)
 		usleep_range(500, 550);
 
-	data->ready_flag[MSG_TYPE_SET_REGISTER] &= ~(1 << prox_idx);
+	data->ready_flag[MSG_TYPE_SET_REGISTER] &= ~(1 << MSG_PROX);
 
 	if (cnt >= TIMEOUT_CNT)
 		pr_err("[FACTORY] %s: Timeout!!!\n", __func__);
 
 	pdata->reg_backup[0] = msg_buf[0];
-	pr_info("[FACTORY] %s: 0x%x - %d\n",
-		__func__, msg_buf[0], data->msg_buf[prox_idx][0]);
+	pr_info("[FACTORY] %s: 0x%x - 0x%x\n",
+		__func__, msg_buf[0], data->msg_buf[MSG_PROX][0]);
 	mutex_unlock(&data->prox_factory_mutex);
 
 	return size;
@@ -708,18 +473,17 @@ static ssize_t prox_light_get_dhr_sensor_info_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct adsp_data *data = dev_get_drvdata(dev);
-	uint16_t prox_idx = get_prox_sidx(data);
 	uint8_t cnt = 0;
 	int offset = 0;
-	int32_t *info = data->msg_buf[prox_idx];
+	int32_t *info = data->msg_buf[MSG_PROX];
 
 	mutex_lock(&data->prox_factory_mutex);
-	adsp_unicast(NULL, 0, prox_idx, 0, MSG_TYPE_GET_DHR_INFO);
-	while (!(data->ready_flag[MSG_TYPE_GET_DHR_INFO] & 1 << prox_idx) &&
+	adsp_unicast(NULL, 0, MSG_PROX, 0, MSG_TYPE_GET_DHR_INFO);
+	while (!(data->ready_flag[MSG_TYPE_GET_DHR_INFO] & 1 << MSG_PROX) &&
 		cnt++ < TIMEOUT_CNT)
 		usleep_range(500, 550);
 
-	data->ready_flag[MSG_TYPE_GET_DHR_INFO] &= ~(1 << prox_idx);
+	data->ready_flag[MSG_TYPE_GET_DHR_INFO] &= ~(1 << MSG_PROX);
 
 	if (cnt >= TIMEOUT_CNT)
 		pr_err("[FACTORY] %s: Timeout!!!\n", __func__);
@@ -751,44 +515,6 @@ static ssize_t prox_light_get_dhr_sensor_info_show(struct device *dev,
 	return offset;
 }
 
-static ssize_t prox_wakelock_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t size)
-{
-	return size;
-}
-
-static ssize_t prox_trim_check_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	struct adsp_data *data = dev_get_drvdata(dev);
-	uint16_t prox_idx = get_prox_sidx(data);
-	int cnt = 0;
-	int32_t msg = PROX_CMD_TYPE_GET_TRIM_CHECK;
-
-	mutex_lock(&data->prox_factory_mutex);
-	adsp_unicast(&msg, sizeof(int32_t), prox_idx, 0, MSG_TYPE_GET_CAL_DATA);
-
-	while (!(data->ready_flag[MSG_TYPE_GET_CAL_DATA] & 1 << prox_idx) &&
-		cnt++ < TIMEOUT_CNT)
-		usleep_range(500, 550);
-
-	data->ready_flag[MSG_TYPE_GET_CAL_DATA] &= ~(1 << prox_idx);
-	mutex_unlock(&data->prox_factory_mutex);
-
-	if (cnt >= TIMEOUT_CNT) {
-		pr_err("[FACTORY] %s: Timeout!!!\n", __func__);
-		return snprintf(buf, PAGE_SIZE, "NG\n");
-	}
-
-	pr_info("[FACTORY] %s: [%s]: 0x%x, 0x%x\n",
-		__func__, (data->msg_buf[prox_idx][0] > 0) ? "TRIM" : "UNTRIM",
-		(uint16_t)data->msg_buf[prox_idx][1],
-		(uint16_t)data->msg_buf[prox_idx][2]);
-
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-		(data->msg_buf[prox_idx][0] > 0) ? "TRIM" : "UNTRIM");
-}
-
 static DEVICE_ATTR(vendor, 0444, prox_vendor_show, NULL);
 static DEVICE_ATTR(name, 0444, prox_name_show, NULL);
 static DEVICE_ATTR(state, 0444, prox_raw_data_show, NULL);
@@ -796,7 +522,7 @@ static DEVICE_ATTR(raw_data, 0444, prox_raw_data_show, NULL);
 static DEVICE_ATTR(prox_avg, 0664,
 	prox_avg_show, prox_avg_store);
 static DEVICE_ATTR(prox_cal, 0664,
-	prox_cal_show, prox_cal_store);
+	prox_cancel_show, prox_cancel_store);
 static DEVICE_ATTR(thresh_high, 0664,
 	prox_thresh_high_show, prox_thresh_high_store);
 static DEVICE_ATTR(thresh_low, 0664,
@@ -819,8 +545,6 @@ static DEVICE_ATTR(thresh_detect_low, 0664,
 static DEVICE_ATTR(prox_alert_thresh, 0444, prox_alert_thresh_show, NULL);
 static DEVICE_ATTR(dhr_sensor_info, 0440,
 	prox_light_get_dhr_sensor_info_show, NULL);
-static DEVICE_ATTR(prox_wakelock, 0220, NULL, prox_wakelock_store);
-static DEVICE_ATTR(trim_check, 0444, prox_trim_check_show, NULL);
 
 static struct device_attribute *prox_attrs[] = {
 	&dev_attr_vendor,
@@ -842,8 +566,6 @@ static struct device_attribute *prox_attrs[] = {
 	&dev_attr_dhr_sensor_info,
 	&dev_attr_register_write,
 	&dev_attr_register_read,
-	&dev_attr_prox_wakelock,
-	&dev_attr_trim_check,
 	NULL,
 };
 

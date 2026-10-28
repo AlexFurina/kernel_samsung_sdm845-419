@@ -19,9 +19,8 @@
 #define CHIP_ID "LSM6DSO"
 #define ST_PASS 1
 #define ST_FAIL 0
-#define STARTUP_BIT_FAIL 2
-#define OIS_ST_BIT_SET 3
-#define G_ZRL_DELTA_FAIL 4
+#define ST_ZRO_MIN (-15) /* HQE request */
+#define ST_ZRO_MAX 15 /* HQE request */
 #define SELFTEST_REVISED 1
 
 static ssize_t gyro_vendor_show(struct device *dev,
@@ -97,7 +96,7 @@ static ssize_t gyro_selftest_show(struct device *dev,
 
 	while (!(data->ready_flag[MSG_TYPE_ST_SHOW_DATA] & 1 << MSG_GYRO) &&
 		cnt++ < TIMEOUT_CNT)
-		msleep(25);
+		msleep(20);
 
 	data->ready_flag[MSG_TYPE_ST_SHOW_DATA] &= ~(1 << MSG_GYRO);
 
@@ -118,25 +117,24 @@ static ssize_t gyro_selftest_show(struct device *dev,
 			data->msg_buf[MSG_GYRO][3],
 			data->msg_buf[MSG_GYRO][4]);
 
-		if (data->msg_buf[MSG_GYRO][5] == OIS_ST_BIT_SET)
-			pr_info("[FACTORY] %s - OIS_ST_BIT fail\n", __func__);
-		else if (data->msg_buf[MSG_GYRO][5] == G_ZRL_DELTA_FAIL)
-			pr_info("[FACTORY] %s - ZRL Delta fail\n", __func__);
-
 		return snprintf(buf, PAGE_SIZE, "%d,%d,%d\n",
 			data->msg_buf[MSG_GYRO][2],
 			data->msg_buf[MSG_GYRO][3],
 			data->msg_buf[MSG_GYRO][4]);
-	} else {
-		st_zro_res = ST_PASS;
 	}
 
 	if (!data->msg_buf[MSG_GYRO][5])
 		st_diff_res = ST_PASS;
-	else if (data->msg_buf[MSG_GYRO][5] == STARTUP_BIT_FAIL)
-		pr_info("[FACTORY] %s - Gyro Start Up Bit fail\n", __func__);
 
-	pr_info("[FACTORY] %s - %d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+	if((ST_ZRO_MIN <= data->msg_buf[MSG_GYRO][6])
+		&& (data->msg_buf[MSG_GYRO][6] <= ST_ZRO_MAX)
+		&& (ST_ZRO_MIN <= data->msg_buf[MSG_GYRO][7])
+		&& (data->msg_buf[MSG_GYRO][7] <= ST_ZRO_MAX)
+		&& (ST_ZRO_MIN <= data->msg_buf[MSG_GYRO][8])
+		&& (data->msg_buf[MSG_GYRO][8]<= ST_ZRO_MAX))
+		st_zro_res = ST_PASS;
+
+	pr_info("[FACTORY]: %s - %d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
 		__func__,
 		data->msg_buf[MSG_GYRO][2], data->msg_buf[MSG_GYRO][3],
 		data->msg_buf[MSG_GYRO][4], data->msg_buf[MSG_GYRO][6],
@@ -157,32 +155,6 @@ static ssize_t gyro_selftest_show(struct device *dev,
 		st_diff_res, st_zro_res);
 }
 
-static ssize_t trimmed_odr_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	struct adsp_data *data = dev_get_drvdata(dev);
-	uint8_t cnt = 0;
-
-	adsp_unicast(NULL, 0, MSG_GYRO, 0, MSG_TYPE_GET_REGISTER);
-
-	while (!(data->ready_flag[MSG_TYPE_GET_REGISTER] & 1 << MSG_GYRO)
-		&& cnt++ < TIMEOUT_CNT)
-		msleep(20);
-
-	data->ready_flag[MSG_TYPE_GET_REGISTER] &= ~(1 << MSG_GYRO);
-
-	if (cnt >= TIMEOUT_CNT) {
-		pr_err("[FACTORY] %s: Timeout!!!\n", __func__);
-		return snprintf(buf, PAGE_SIZE, "0\n");
-	}
-
-	pr_info("[FACTORY] %s: 0x63h = 0x%02x, trimmed_odr = %d Hz\n", __func__,
-		data->msg_buf[MSG_GYRO][0], data->msg_buf[MSG_GYRO][1]);
-
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-		data->msg_buf[MSG_GYRO][1]);
-}
-
 static DEVICE_ATTR(name, 0444, gyro_name_show, NULL);
 static DEVICE_ATTR(vendor, 0444, gyro_vendor_show, NULL);
 static DEVICE_ATTR(selftest, 0440, gyro_selftest_show, NULL);
@@ -190,7 +162,6 @@ static DEVICE_ATTR(power_on, 0444, gyro_power_on, NULL);
 static DEVICE_ATTR(power_off, 0444, gyro_power_off, NULL);
 static DEVICE_ATTR(temperature, 0440, gyro_temp_show, NULL);
 static DEVICE_ATTR(selftest_revised, 0440, selftest_revised_show, NULL);
-static DEVICE_ATTR(trimmed_odr, 0440, trimmed_odr_show, NULL);
 
 static struct device_attribute *gyro_attrs[] = {
 	&dev_attr_name,
@@ -200,7 +171,6 @@ static struct device_attribute *gyro_attrs[] = {
 	&dev_attr_power_off,
 	&dev_attr_temperature,
 	&dev_attr_selftest_revised,
-	&dev_attr_trimmed_odr,
 	NULL,
 };
 

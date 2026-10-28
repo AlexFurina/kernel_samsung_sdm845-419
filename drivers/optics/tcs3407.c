@@ -17,10 +17,9 @@
 #define VENDOR				"AMS"
 
 #define TCS3407_CHIP_NAME	"TCS3407"
-#define TCS3408_CHIP_NAME	"TCS3408"
 
-#define VERSION				"2"
-#define SUB_VERSION			"10"
+#define VERSION				"1"
+#define SUB_VERSION			"18"
 #define VENDOR_VERSION		"a"
 
 #define MODULE_NAME_ALS		"als_rear"
@@ -32,7 +31,6 @@
 #define AMSDRIVER_I2C_MAX_RETRIES	5
 
 //#define CONFIG_AMS_OPTICAL_SENSOR_FIFO
-#define TCS3408_USE_SMUX
 
 #ifdef CONFIG_AMS_OPTICAL_SENSOR_FIFO
 /* AWB/Flicker Definition */
@@ -49,23 +47,14 @@
 #define TCS3407_IOCTL_READ_FLICKER	_IOR(TCS3407_IOCTL_MAGIC, 0x01, int *)
 #endif
 
-#if (defined(CONFIG_LEDS_S2MPB02)|| defined(CONFIG_LEDS_RT8547) || defined(CONFIG_LEDS_KTD2692)) && !defined(CONFIG_AMS_OPTICAL_SENSOR_FIFO)
+#if defined(CONFIG_LEDS_S2MPB02) && !defined(CONFIG_AMS_OPTICAL_SENSOR_FIFO)
 #define CONFIG_AMS_OPTICAL_SENSOR_EOL_MODE
 #endif
 
 #include "tcs3407.h"
 
 #ifdef CONFIG_AMS_OPTICAL_SENSOR_EOL_MODE
-#if defined(CONFIG_LEDS_S2MPB02)
 #include <linux/leds-s2mpb02.h>
-#endif
-#if defined(CONFIG_LEDS_RT8547)
-#include <linux/leds-rt8547.h>
-#endif
-#if defined(CONFIG_LEDS_KTD2692) 
-#include <linux/leds-ktd2692.h>
-#endif
-#include <linux/pwm.h>
 
 #define DEFAULT_DUTY_50HZ		5000
 #define DEFAULT_DUTY_60HZ		4166
@@ -73,27 +62,17 @@
 #define MAX_TEST_RESULT			256
 #define EOL_COUNT				20
 #define EOL_SKIP_COUNT			5
-#define EOL_GAIN				500
 
 #define DEFAULT_IR_SPEC_MIN		0
 #define DEFAULT_IR_SPEC_MAX		500000
-#define DEFAULT_IC_SPEC_MIN		0
-#define DEFAULT_IC_SPEC_MAX		20000
 
-static u32 gSpec_ir_min = DEFAULT_IR_SPEC_MIN;
-static u32 gSpec_ir_max = DEFAULT_IR_SPEC_MAX;
-static u32 gSpec_clear_min = DEFAULT_IR_SPEC_MIN;
-static u32 gSpec_clear_max = DEFAULT_IR_SPEC_MAX;
-static u32 gSpec_icratio_min = DEFAULT_IC_SPEC_MIN;
-static u32 gSpec_icratio_max = DEFAULT_IC_SPEC_MAX;
-static u32 debug_pwm_duty = 0;
+static u32 gSpec_min = DEFAULT_IR_SPEC_MIN;
+static u32 gSpec_max = DEFAULT_IR_SPEC_MAX;
 
 #define FREQ100_SPEC_IN(X)	((X == 100)?"PASS":"FAIL")
 #define FREQ120_SPEC_IN(X)	((X == 120)?"PASS":"FAIL")
 
-#define IR_SPEC_IN(X)		((X >= gSpec_ir_min && X <= gSpec_ir_max)?"PASS":"FAIL")
-#define CLEAR_SPEC_IN(X)	((X >= gSpec_clear_min && X <= gSpec_clear_max)?"PASS":"FAIL")
-#define ICRATIO_SPEC_IN(X)	((X >= gSpec_icratio_min && X <= gSpec_icratio_max)?"PASS":"FAIL")
+#define IR_SPEC_IN(X)		((X >= gSpec_min && X <= gSpec_max)?"PASS":"FAIL")
 #endif
 
 static int als_debug = 1;
@@ -157,57 +136,6 @@ static struct tcs3407_device_data *tcs3407_data;
 /* Get CRGB and whatever Wideband it may have */
 #define AMS_ALS_GET_CRGB_W(x, ret)		{ret = ams_getBuf(ctx->portHndl, DEVREG_ADATA0L, (uint8_t *) (x), 10); }
 
-#if 0 //def TCS3408_USE_SMUX
-static uint8_t smux_tcs3408_data[] = {
-    0x14, 0x25, 0x23, 0x41,
-    0x33, 0x12, 0x14, 0x24,
-    0x53, 0x23, 0x15, 0x14,
-    0x32, 0x44, 0x21, 0x23,
-    0x13, 0x54, 0x00, 0x66
-};
-#endif
-
-// SMUX Default
-//14 25 23 41 33 12 14 24 53 23 15 14 32 44 21 23 13 54 00 76
-/*
-static uint8_t smux_tcs3407_data[] = {
-    0x14, 0x25, 0x23, 0x41,
-    0x33, 0x12, 0x14, 0x24,
-    0x53, 0x23, 0x15, 0x14,
-    0x32, 0x44, 0x21, 0x23,
-    0x13, 0x54, 0x00, 0x77
-};
-*/
-
-#define AMS_READ_S_MUX()		{ret = ams_setField(ctx->portHndl, DEVREG_CFG6, ((1)<<3), MASK_SMUX_CMD); }
-#define AMS_WRITE_S_MUX()		{ret = ams_setField(ctx->portHndl, DEVREG_CFG6, ((2)<<3), MASK_SMUX_CMD); }
-#define AMS_CLOSE_S_MUX()		{ret = ams_setField(ctx->portHndl, DEVREG_CFG6, 0x00, MASK_SMUX_CMD); }
-
-#if defined(CONFIG_LEDS_KTD2692)|| defined(CONFIG_LEDS_RT8547)
-static unsigned int system_rev __read_mostly;
-
-static int __init sec_hw_rev_setup(char *p)
-{
-	int ret;
-
-	ret = kstrtouint(p, 0, &system_rev);
-	if (unlikely(ret < 0)) {
-		ALS_dbg("%s - androidboot.revision is malformed %s\n", __func__, p);
-		return -EINVAL;
-	}
-
-	ALS_dbg("%s - androidboot.revision %x\n", __func__, system_rev);
-
-	return 0;
-}
-early_param("androidboot.revision", sec_hw_rev_setup);
-
-static unsigned int sec_hw_rev(void)
-{
-	return system_rev;
-}
-#endif
-
 typedef struct{
 	uint8_t deviceId;
 	uint8_t deviceIdMask;
@@ -236,15 +164,12 @@ typedef struct _fifo {
 static ams_deviceIdentifier_t deviceIdentifier[] = {
 	{AMS_DEVICE_ID, AMS_DEVICE_ID_MASK, AMS_REV_ID, AMS_REV_ID_MASK, AMS_TCS3407},
 	{AMS_DEVICE_ID, AMS_DEVICE_ID_MASK, AMS_REV_ID_UNTRIM, AMS_REV_ID_MASK, AMS_TCS3407_UNTRIM},
-	{AMS_DEVICE_ID2, AMS_DEVICE_ID2_MASK, AMS_REV_ID2, AMS_REV_ID2_MASK, AMS_TCS3408},
-	{AMS_DEVICE_ID2, AMS_DEVICE_ID2_MASK, AMS_REV_ID2_UNTRIM, AMS_REV_ID2_MASK, AMS_TCS3408_UNTRIM},
+	{AMS_DEVICE_ID2, AMS_DEVICE_ID2_MASK, AMS_REV_ID2, AMS_REV_ID2_MASK, AMS_TMD4907},
+	{AMS_DEVICE_ID3, AMS_DEVICE_ID3_MASK, AMS_REV_ID3, AMS_REV_ID3_MASK, AMS_TMD4906},
 	{0, 0, 0, 0, AMS_LAST_DEVICE}
 };
 
 deviceRegisterTable_t deviceRegisterDefinition[DEVREG_REG_MAX] = {
-	{ 0x00, 0x00 },        /* DEVREG_RAM_START */
-	{ 0x13, 0x00 },        /* DEVREG_SMUX13_PRX_TO_FLICKER */
-
 	{ 0x80, 0x00 },          /* DEVREG_ENABLE */
 	{ 0x81, 0x00 },          /* DEVREG_ATIME */
 	{ 0x82, 0x00 },          /* DEVREG_PTIME */
@@ -294,7 +219,6 @@ deviceRegisterTable_t deviceRegisterDefinition[DEVREG_REG_MAX] = {
 	{ 0xCA, 0xE7 },          /* DEVREG_ASTEPL */
 	{ 0xCB, 0x03 },          /* DEVREG_ASTEPH */
 	{ 0xCF, 0X97 },          /* DEVREG_AGC_GAIN_MAX */
-	/*0x97, extended max fd_gain to 1024x as 0xA7, again to 2048x onTCS3408 0xBC*/
 
 	{ 0xD6, 0xFf },          /* DEVREG_AZ_CONFIG */
 	{ 0xD7, 0x21},           /*DEVREG_FD_CFG0*/
@@ -325,9 +249,7 @@ uint32_t alsGain_conversion[] = {
 	64 * 1000,
 	128 * 1000,
 	256 * 1000,
-	512 * 1000,
-	1024 * 1000,
-	2048 * 1000,
+	512 * 1000
 };
 
 static const struct of_device_id tcs3407_match_table[] = {
@@ -401,6 +323,8 @@ static uint16_t alsTimeUsToReg(uint32_t x)
 	return regValue;
 }
 
+/* #define DEBUG_AMSDRIVER */
+#ifdef DEBUG_AMSDRIVER
 static void tcs3407_debug_var(struct tcs3407_device_data *data)
 {
 	ALS_dbg("===== %s =====\n", __func__);
@@ -411,19 +335,18 @@ static void tcs3407_debug_var(struct tcs3407_device_data *data)
 	ALS_dbg("%s als_pinctrl %p\n", __func__, data->als_pinctrl);
 	ALS_dbg("%s pins_sleep %p\n", __func__, data->pins_sleep);
 	ALS_dbg("%s pins_idle %p\n", __func__, data->pins_idle);
+	ALS_dbg("%s led_3p3 %s\n", __func__, data->led_3p3);
 	ALS_dbg("%s vdd_1p8 %s\n", __func__, data->vdd_1p8);
 	ALS_dbg("%s i2c_1p8 %s\n", __func__, data->i2c_1p8);
 	ALS_dbg("%s als_enabled %d\n", __func__, data->enabled);
-	ALS_dbg("%s als_sampling_rate %d\n", __func__, data->sampling_period_ns);
+	ALS_dbg("%s als_sampling_rate %d\n", __func__, data->hrm_sampling_rate);
 	ALS_dbg("%s regulator_state %d\n", __func__, data->regulator_state);
-	ALS_dbg("%s als_int %d\n", __func__, data->pin_als_int);
-#if !defined(CONFIG_SEC_Y2Q_PROJECT)
-	ALS_dbg("%s als_en %d\n", __func__, data->pin_als_en);
-#endif
+	ALS_dbg("%s als_int %d\n", __func__, data->pin_hrm_int);
 	ALS_dbg("%s als_irq %d\n", __func__, data->dev_irq);
 	ALS_dbg("%s irq_state %d\n", __func__, data->irq_state);
 	ALS_dbg("===== %s =====\n", __func__);
 }
+#endif
 
 static int tcs3407_write_reg(struct tcs3407_device_data *device,
 	u8 reg_addr, u8 data)
@@ -504,7 +427,7 @@ static int tcs3407_read_reg(struct tcs3407_device_data *device,
 		if (err != num)
 			msleep_interruptible(AMSDRIVER_I2C_RETRY_DELAY);
 		if (err < 0)
-			ALS_err("%s - i2c_transfer error = %d (reg[0x%x])\n", __func__, err, reg_addr);
+			ALS_err("%s - i2c_transfer error = %d\n", __func__, err);
 	} while ((err != num) && (++tries < AMSDRIVER_I2C_MAX_RETRIES));
 
 	mutex_unlock(&device->suspendlock);
@@ -672,7 +595,6 @@ static int amsAlg_als_processData(amsAlsContext_t *ctx, amsAlsDataSet_t *inputDa
 	uint32_t tempIr = 0, tempWb = 0, tempClear = 0;
 	uint32_t UVIR_Clear = 0;
 	uint32_t UVIR_wideband = 0;
-	ams_deviceCtx_t *deviceCtx = tcs3407_data->deviceCtx;
 
 	ALS_info("%s - raw: %d, %d, %d\n", __func__, ctx->uvir_cpl, ctx->gain, ctx->time_us);
 	ALS_info("%s - raw: %d, %d, %d, %d, %d\n", __func__, inputData->datasetArray->clearADC,
@@ -703,33 +625,22 @@ static int amsAlg_als_processData(amsAlsContext_t *ctx, amsAlsDataSet_t *inputDa
 		ctx->results.irrClear = ((inputData->datasetArray->clearADC * (AMS_ALS_Cc / CPU_FRIENDLY_FACTOR_1024))) / ctx->uvir_cpl;
 		ctx->results.irrBlue = ((inputData->datasetArray->blueADC * (AMS_ALS_Bc / CPU_FRIENDLY_FACTOR_1024))) / ctx->uvir_cpl;
 		ctx->results.irrGreen = ((inputData->datasetArray->greenADC * (AMS_ALS_Gc / CPU_FRIENDLY_FACTOR_1024))) / ctx->uvir_cpl;
-		ctx->results.irrWideband = ((inputData->datasetArray->widebandADC * (AMS_ALS_Wbc / CPU_FRIENDLY_FACTOR_1024))) / ctx->uvir_cpl;
 
 		UVIR_Clear = (inputData->datasetArray->clearADC * (AMS_ALS_Cc / CPU_FRIENDLY_FACTOR_1024)) / ctx->uvir_cpl;
 		UVIR_wideband = (inputData->datasetArray->widebandADC * (AMS_ALS_Wbc / CPU_FRIENDLY_FACTOR_1024)) / ctx->uvir_cpl;
 
-		if (deviceCtx->deviceId < AMS_TCS3408) {
-			tempWb = WIDEBAND_CONST * UVIR_wideband;
-			tempClear = (CLEAR_CONST * UVIR_Clear) >> 1;
+		tempWb = WIDEBAND_CONST * UVIR_wideband;
+		tempClear = (CLEAR_CONST * UVIR_Clear) >> 1;
 
-			if (tempWb < tempClear)
-				ctx->results.irrIR = 0;
-			else
-				ctx->results.irrIR = tempWb - tempClear;
-		} else {
-			tempWb = (WIDEBAND_CONST * UVIR_wideband) * AMS_ALS_FACTOR;
-			tempClear = (1400 * UVIR_Clear);
-
-			if (tempWb < tempClear)
-				ctx->results.irrIR = 0;
-			else
-				ctx->results.irrIR = (tempWb - tempClear) / AMS_ALS_FACTOR;
-		}
+		if (tempWb < tempClear)
+			ctx->results.irrWideband = 0;
+		else
+			ctx->results.irrWideband = tempWb - tempClear;
 	}
 
-	ALS_info("%s - cal: %d, %d, %d, %d, %d, %d, %d, %d\n", __func__,
+	ALS_info("%s - cal: %d, %d, %d, %d, %d, %d, %d\n", __func__,
 				ctx->results.irrClear, ctx->results.irrRed, ctx->results.irrGreen,
-				ctx->results.irrBlue, ctx->results.irrIR, ctx->results.irrWideband, UVIR_Clear, UVIR_wideband);
+				ctx->results.irrBlue, ctx->results.irrWideband,	UVIR_Clear,	UVIR_wideband);
 
 	return 0;
 }
@@ -753,9 +664,6 @@ uint32_t ams_getResult(ams_deviceCtx_t *ctx)
 static int amsAlg_als_initAlg(amsAlsContext_t *ctx, amsAlsInitData_t *initData);
 static int amsAlg_als_getAlgInfo(amsAlsAlgoInfo_t *info);
 static int amsAlg_als_processData(amsAlsContext_t *ctx, amsAlsDataSet_t *inputData);
-#ifdef TCS3408_USE_SMUX
-static int ams_smux_set(ams_deviceCtx_t *ctx);
-#endif
 
 static int ccb_alsInit(void *dcbCtx, ams_ccb_als_init_t *initData)
 {
@@ -1201,8 +1109,7 @@ static void ccb_alsGetResult(void *dcbCtx, ams_ccb_als_result_t *exportData)
 	exportData->red = ccbCtx->ctxAlgAls.results.irrRed;
 	exportData->green = ccbCtx->ctxAlgAls.results.irrGreen;
 	exportData->blue = ccbCtx->ctxAlgAls.results.irrBlue;
-	exportData->ir = ccbCtx->ctxAlgAls.results.irrIR;
-	exportData->wideband = ccbCtx->ctxAlgAls.results.irrWideband;
+	exportData->ir = ccbCtx->ctxAlgAls.results.irrWideband;
 	exportData->time_us = ccbCtx->ctxAlgAls.time_us;
 	exportData->gain = ccbCtx->ctxAlgAls.gain;
 	exportData->rawClear = ccbCtx->ctxAlgAls.results.rawClear;
@@ -1408,7 +1315,7 @@ static void als_update_statics(amsAlsContext_t *ctx)
 		tempCpl = (uint32_t)ULONG_MAX;
 	}
 
-#if 0//def __KERNEL__
+#ifdef __KERNEL__
 	/*UVIR CPL refer as a const value with STAR Proejct */
 	ctx->uvir_cpl = (tempTime_us * tempGain);
 	do_div(ctx->uvir_cpl, AMS_ALS_GAIN_FACTOR);
@@ -1462,7 +1369,6 @@ static int amsAlg_als_getResult(amsAlsContext_t *ctx, amsAlsResult_t *outData)
 	outData->irrGreen = ctx->results.irrGreen;
 	outData->irrRed   = ctx->results.irrRed;
 	outData->irrWideband = ctx->results.irrWideband;
-	outData->irrIR = ctx->results.irrIR;
 	outData->mLux_ave  = ctx->results.mLux_ave / AMS_LUX_AVERAGE_COUNT;
 	outData->IR  = ctx->results.IR;
 	outData->CCT = ctx->results.CCT;
@@ -1517,31 +1423,6 @@ static int amsAlg_als_getAlgInfo(amsAlsAlgoInfo_t *info)
 
 	return ret;
 }
-
-#ifdef TCS3408_USE_SMUX
-static int ams_smux_set(ams_deviceCtx_t *ctx)
-{
-	int ret = 0;
-
-	if ((ctx->deviceId == AMS_TCS3408) || (ctx->deviceId == AMS_TCS3408_UNTRIM)) {
-		ams_setByte(ctx->portHndl, DEVREG_ENABLE, 0x00); //sensor off
-		ams_setByte(ctx->portHndl, DEVREG_ENABLE, 0x01); //only PON
-
-		/* SMUX read command from ram*/
-		AMS_READ_S_MUX();
-		ams_setByte(ctx->portHndl, DEVREG_ENABLE, 0x11);//PON + SMUXEN excute
-		udelay(1000); //Now 0x80 needs to be read back until SMUXEN has been cleared , wait 1msec
-		ams_setByte(ctx->portHndl,DEVREG_SMUX13_PRX_TO_FLICKER,0x06); // 0x66 : ficker+flicker, 0x76: only one flikcer, 0x00 flicker off , 0x06 only ir fliter cut Flicker PD en
-		/* SMUX write command */
-		AMS_WRITE_S_MUX();//SMUX Write from RAM to chain
-		ams_setByte(ctx->portHndl, DEVREG_ENABLE, 0x11);//PON + SMUXEN
-		udelay(1000); //Now 0x80 needs to be read back until SMUXEN has been cleared , wait 1msec
-		//ams_setByte(ctx->portHndl, DEVREG_ENABLE, 0x11); //PON + SMUXEN
-	}
-
-	return ret;
-}
-#endif
 
 static int tcs3407_print_reg_status(void)
 {
@@ -1620,20 +1501,15 @@ static int tcs3407_power_ctrl(struct tcs3407_device_data *data, int onoff)
 	if (data->i2c_1p8 != NULL) {
 		regulator_i2c_1p8 = regulator_get(NULL, data->i2c_1p8);
 		if (IS_ERR(regulator_i2c_1p8) || regulator_i2c_1p8 == NULL) {
-			ALS_err("%s - get i2c_1p8 regulator failed [%s]\n", __func__, data->i2c_1p8);
+			ALS_err("%s - get i2c_1p8 regulator failed\n", __func__);
 			rc = PTR_ERR(regulator_i2c_1p8);
 			regulator_i2c_1p8 = NULL;
 			goto get_i2c_1p8_failed;
 		}
 	}
 
-#if defined(CONFIG_SEC_R8Q_PROJECT)
-	regulator_vdd_1p8 =
-		regulator_get(&data->client->dev, "vdd_1p8");
-#else
 	regulator_vdd_1p8 =
 		regulator_get(&data->client->dev, data->vdd_1p8);
-#endif
 	if (IS_ERR(regulator_vdd_1p8) || regulator_vdd_1p8 == NULL) {
 		ALS_dbg("%s - get vdd_1p8 regulator failed\n", __func__);
 		rc = PTR_ERR(regulator_vdd_1p8);
@@ -1657,16 +1533,7 @@ static int tcs3407_power_ctrl(struct tcs3407_device_data *data, int onoff)
 				goto enable_vdd_1p8_failed;
 			}
 		}
-#if !defined(CONFIG_SEC_Y2Q_PROJECT)
-		if (data->pin_als_en >= 0) {
-			rc = gpio_direction_output(data->pin_als_en, 1);
-			if (rc) {
-				ALS_err("%s - gpio direction output failed, rc=%d\n",
-					__func__, rc);
-				goto gpio_direction_output_failed;
-			}
-		}
-#endif
+
 		usleep_range(1000, 1100);
 	} else {
 		if (regulator_vdd_1p8 != NULL) {
@@ -1677,17 +1544,6 @@ static int tcs3407_power_ctrl(struct tcs3407_device_data *data, int onoff)
 				goto done;
 			}
 		}
-
-#if !defined(CONFIG_SEC_Y2Q_PROJECT)
-		if (data->pin_als_en >= 0) {
-			gpio_set_value(data->pin_als_en, 0);
-			rc = gpio_direction_input(data->pin_als_en);
-			if (rc) {
-				ALS_err("%s - gpio direction input failed, rc=%d\n",
-					__func__, rc);
-			}
-		}
-#endif
 
 #ifdef I2C_1P8_DISABLE
 		if (data->i2c_1p8 != NULL) {
@@ -1703,11 +1559,6 @@ static int tcs3407_power_ctrl(struct tcs3407_device_data *data, int onoff)
 
 	goto done;
 
-#if !defined(CONFIG_SEC_Y2Q_PROJECT)
-gpio_direction_output_failed:
-#endif
-	if (regulator_vdd_1p8 != NULL)
-		regulator_disable(regulator_vdd_1p8);
 enable_vdd_1p8_failed:
 #ifdef I2C_1P8_DISABLE
 	if (data->i2c_1p8 != NULL) {
@@ -1744,21 +1595,18 @@ static void report_als(struct tcs3407_device_data *chip)
 		input_sync(chip->als_input_dev);
 
 		if (als_cnt++ > 10) {
-			ALS_dbg("%s - I:%d, R:%d, G:%d, B:%d, C:%d, W:%d, TIME:%d, GAIN:%d\n", __func__,
-				outData.ir, outData.red, outData.green, outData.blue, outData.clear, outData.wideband, outData.time_us, outData.gain);
+			ALS_dbg("%s - I:%d, R:%d, G:%d, B:%d, C:%d TIME:%d, GAIN:%d\n", __func__,
+				outData.ir, outData.red, outData.green, outData.blue, outData.clear, outData.time_us, outData.gain);
 			als_cnt = 0;
 		} else {
-			ALS_info("%s - I:%d, R:%d, G:%d, B:%d, C:%d, W:%d, TIME:%d, GAIN:%d\n", __func__,
-				outData.ir, outData.red, outData.green, outData.blue, outData.clear, outData.wideband, outData.time_us, outData.gain);
+			ALS_info("%s - I:%d, R:%d, G:%d, B:%d, C:%d TIME:%d, GAIN:%d\n", __func__,
+				outData.ir, outData.red, outData.green, outData.blue, outData.clear, outData.time_us, outData.gain);
 		}
 
 		chip->user_ir_data = outData.ir;
 #ifdef CONFIG_AMS_OPTICAL_SENSOR_EOL_MODE
-		if (chip->eol_enable && chip->eol_count >= EOL_SKIP_COUNT) {
+		if (chip->eol_enable && chip->eol_count >= EOL_SKIP_COUNT)
 			chip->eol_awb += outData.ir;
-			chip->eol_clear += outData.clear;
-			chip->eol_wideband += outData.wideband;
-		}
 #endif
 	}
 }
@@ -1852,17 +1700,6 @@ static ssize_t als_clear_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", outData.clear);
 }
 
-static ssize_t als_wideband_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	ams_apiAls_t outData;
-	struct tcs3407_device_data *chip = dev_get_drvdata(dev);
-
-	ams_deviceGetAls(chip->deviceCtx, &outData);
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", outData.wideband);
-}
-
 static ssize_t als_raw_data_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -1921,9 +1758,9 @@ static ssize_t tcs3407_enable_show(struct device *dev,
 	ams_getMode(data->deviceCtx, &mode);
 
 	if (mode & MODE_ALS_ALL)
-		return snprintf(buf, PAGE_SIZE, "%d\n", 1);
+		return snprintf(buf, strlen(buf), "%d\n", 1);
 	else
-		return snprintf(buf, PAGE_SIZE, "%d\n", 0);
+		return snprintf(buf, strlen(buf), "%d\n", 0);
 }
 
 static int ams_deviceInit(ams_deviceCtx_t *ctx, AMS_PORT_portHndl *portHndl, ams_calibrationData_t *calibrationData);
@@ -2055,23 +1892,9 @@ static struct attribute_group als_attribute_group = {
 static ssize_t tcs3407_name_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct tcs3407_device_data *data = dev_get_drvdata(dev);
-	ams_deviceCtx_t *ctx = data->deviceCtx;
 	char chip_name[NAME_LEN];
 
-	switch (ctx->deviceId) {
-	case AMS_TCS3407:
-	case AMS_TCS3407_UNTRIM:
-		strlcpy(chip_name, TCS3407_CHIP_NAME, sizeof(chip_name));
-		break;
-	case AMS_TCS3408:
-	case AMS_TCS3408_UNTRIM:
-		strlcpy(chip_name, TCS3408_CHIP_NAME, sizeof(chip_name));
-		break;
-	default:
-		strlcpy(chip_name, TCS3407_CHIP_NAME, sizeof(chip_name));
-		break;
-	}
+	strlcpy(chip_name, TCS3407_CHIP_NAME, strlen(TCS3407_CHIP_NAME) + 1);
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", chip_name);
 }
@@ -2079,7 +1902,11 @@ static ssize_t tcs3407_name_show(struct device *dev,
 static ssize_t tcs3407_vendor_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%s\n", VENDOR);
+	char vendor[NAME_LEN];
+
+	strlcpy(vendor, VENDOR, strlen(VENDOR) + 1);
+
+	return snprintf(buf, PAGE_SIZE, "%s\n", vendor);
 }
 
 static ssize_t tcs3407_flush_store(struct device *dev,
@@ -2205,21 +2032,6 @@ static ssize_t tcs3407_debug_store(struct device *dev,
 	struct tcs3407_device_data *data = dev_get_drvdata(dev);
 	int err;
 	s32 mode;
-	struct pwm_state state;
-	int period = 10000000; /* nano secs */
-	int period2 = 8333333; /* nano secs */
-	int duty_cycle = 5000000;
-
-	if(data->pwm)
-		pwm_get_state(data->pwm, &state);
-
-	state.enabled = 1;
-	state.period = period; /* nano secs */
-	if (debug_pwm_duty)
-		duty_cycle = debug_pwm_duty;
-
-	state.duty_cycle = duty_cycle;
-	state.polarity = PWM_POLARITY_NORMAL; // should be default low
 
 	mutex_lock(&data->activelock);
 	err = kstrtoint(buf, 10, &mode);
@@ -2228,26 +2040,15 @@ static ssize_t tcs3407_debug_store(struct device *dev,
 		mutex_unlock(&data->activelock);
 		return err;
 	}
-	data->debug_mode = mode;
+	data->debug_mode = (u8)mode;
 	ALS_info("%s - mode = %d\n", __func__, mode);
 
 	switch (data->debug_mode) {
 	case DEBUG_REG_STATUS:
 		tcs3407_print_reg_status();
 		break;
-	case DEBUG_VAR:
-		tcs3407_debug_var(data);
-		break;
-	case 3:
-		pinctrl_select_state(data->als_pinctrl,	data->pinctrl_pwm);
-		pwm_apply_state(data->pwm, &state);
-		break;
-	case 4:
-		state.period = period2;
-		pwm_apply_state(data->pwm, &state);
-		break;
+
 	default:
-		debug_pwm_duty = data->debug_mode;
 		break;
 	}
 	mutex_unlock(&data->activelock);
@@ -2379,208 +2180,75 @@ struct device_attribute *attr, char *buf)
 }
 
 #ifdef CONFIG_AMS_OPTICAL_SENSOR_EOL_MODE
+
 static int tcs3407_eol_mode(struct tcs3407_device_data *data)
 {
-
-#if !defined(CONFIG_LEDS_KTD2692)|| !defined(CONFIG_LEDS_RT8547)
-	ams_deviceCtx_t *ctx = data->deviceCtx;
-#endif
-	s32 eol_led_mode;
-
-#if defined(CONFIG_LEDS_KTD2692)|| defined(CONFIG_LEDS_RT8547)
-	unsigned int board_rev = sec_hw_rev();
-#endif
 	int led_curr = 0;
 	int pulse_duty = 0;
 	int curr_state = EOL_STATE_INIT;
 	int ret = 0;
-	int icRatio100 = 0;
-	int icRatio120 = 0;
-	struct pwm_state state;
-	int period_100 = 10000000; /* nano secs */
-	int period_120 = 8333333; /* nano secs */
-	int duty = 20;
-	s32 pin_eol_en = 0;
 
 	data->eol_state = EOL_STATE_INIT;
 	data->eol_enable = 1;
 	data->eol_result_status = 1;
 
-#if defined(CONFIG_LEDS_RT8547)
-	pin_eol_en = data->pin_torch_en;
-#else
-	if (data->eol_flash_type == EOL_FLASH) {
-		ALS_dbg("%s - flash gpio", __func__);
-		pin_eol_en = data->pin_flash_en;
-		eol_led_mode = S2MPB02_FLASH_LED_1;
-	} else {
-		ALS_dbg("%s - torch gpio", __func__);
-		pin_eol_en = data->pin_torch_en;
-		eol_led_mode = S2MPB02_TORCH_LED_1;
-	}
-#endif
+	ret = gpio_request(data->pin_led_en, NULL);
+	if (ret < 0)
+		return ret;
+		
+	s2mpb02_led_en(S2MPB02_TORCH_LED_1, led_curr, S2MPB02_LED_TURN_WAY_GPIO);
 
-	if (data->pwm == NULL || debug_pwm_duty > period_100) {
-		ret = gpio_request(pin_eol_en, NULL);
-		if (ret < 0)
-			return ret;
-
-#if defined(CONFIG_LEDS_RT8547) || defined(CONFIG_LEDS_KTD2692)
-			if(board_rev >7){
-				if (data->eol_flash_type == EOL_FLASH) {
-					pin_eol_en = data->pin_flash_en;
-					led_curr = 80;
-					eol_led_mode = KTD2692_FLICKER_FLASH_MODE;				
-				} else {
-					pin_eol_en = data->pin_torch_en;
-					led_curr = 80;
-					eol_led_mode = KTD2692_FLICKER_FLASH_MODE;
-				}
-			}
-			else
-				led_curr = RT8547_TORCH_CURRENT_25mA;
-#else
-		s2mpb02_led_en(eol_led_mode, led_curr, S2MPB02_LED_TURN_WAY_GPIO);
-
-		/* set min flash current */
-		if (data->eol_flash_type == EOL_FLASH) {
-			led_curr = S2MPB02_FLASH_OUT_I_100MA;
-		} else {
-			switch (ctx->deviceId) {
-				case AMS_TCS3407:
-				case AMS_TCS3407_UNTRIM:
-					led_curr = S2MPB02_TORCH_OUT_I_100MA;
-					break;
-				case AMS_TCS3408:
-				case AMS_TCS3408_UNTRIM:
-					led_curr = S2MPB02_TORCH_OUT_I_80MA;
-					break;
-				default:
-					led_curr = S2MPB02_TORCH_OUT_I_80MA;
-					break;
-			}
+	while (data->eol_state < EOL_STATE_DONE) {
+		switch (data->eol_state) {
+		case EOL_STATE_INIT:
+			break;
+		case EOL_STATE_100:
+			led_curr = S2MPB02_TORCH_OUT_I_100MA;
+			pulse_duty = data->eol_pulse_duty[0];
+			break;
+		case EOL_STATE_120:
+			led_curr = S2MPB02_TORCH_OUT_I_100MA;
+			pulse_duty = data->eol_pulse_duty[1];
+			break;
+		default:
+			break;
 		}
-#endif
-		ALS_dbg("%s - eol_loop start",__func__);
-		while (data->eol_state < EOL_STATE_DONE) {
-			switch (data->eol_state) {
-			case EOL_STATE_INIT:
-				break;
-			case EOL_STATE_100:
-				pulse_duty = data->eol_pulse_duty[0];
-				break;
-			case EOL_STATE_120:
-				pulse_duty = data->eol_pulse_duty[1];
-				break;
-			default:
-				break;
-			}
 
-			if (data->eol_state >= EOL_STATE_100) {
-				if (curr_state != data->eol_state) {
-#if defined(CONFIG_LEDS_RT8547) || defined(CONFIG_LEDS_KTD2692)
-			if(board_rev >7)
-				ktd2692_led_mode_ctrl(3, led_curr);
-			else
-				rt8547_led_set_torch(led_curr);
-#else
-					s2mpb02_led_en(eol_led_mode, led_curr, S2MPB02_LED_TURN_WAY_GPIO);
-#endif
-					curr_state = data->eol_state;
-				} else
-					gpio_direction_output(pin_eol_en, 1);
+		if (data->eol_state >= EOL_STATE_100) {
+			if (curr_state != data->eol_state) {
+				s2mpb02_led_en(S2MPB02_TORCH_LED_1, led_curr, S2MPB02_LED_TURN_WAY_GPIO);
+				curr_state = data->eol_state;
+			} else
+				gpio_direction_output(data->pin_led_en, 1);
 
-				udelay(pulse_duty);
-
-				gpio_direction_output(pin_eol_en, 0);
-
-				data->eol_pulse_count++;
-			}
 			udelay(pulse_duty);
+
+			gpio_direction_output(data->pin_led_en, 0);
+
+			data->eol_pulse_count++;
 		}
-		ALS_dbg("%s - eol loop end",__func__);
-#if defined(CONFIG_LEDS_RT8547) || defined(CONFIG_LEDS_KTD2692)
-			if(board_rev >7)
-				ktd2692_led_mode_ctrl(3, -1);
-			else
-				rt8547_led_set_torch(-1);
-#else
-		s2mpb02_led_en(eol_led_mode, 0, S2MPB02_LED_TURN_WAY_GPIO);
-#endif
-		gpio_free(pin_eol_en);
-	} else {
-		ALS_dbg("%s - PWM torch set 0x%x 0x%x\n", __func__, data->pinctrl_pwm, data->pinctrl_out);
-		pinctrl_select_state(data->als_pinctrl, data->pinctrl_pwm);
-
-		pwm_get_state(data->pwm, &state);
-
-		ALS_dbg("%s - debug duty = %d\n", __func__, debug_pwm_duty);
-
-		while (data->eol_state < EOL_STATE_DONE) {
-			switch (data->eol_state) {
-			case EOL_STATE_INIT:
-				break;
-			case EOL_STATE_100:
-				state.period = period_100; /* nano secs */
-				break;
-			case EOL_STATE_120:
-				state.period = period_120; /* nano secs */
-				break;
-			default:
-				break;
-			}
-
-			if (data->eol_state >= EOL_STATE_100) {
-				if (curr_state != data->eol_state) {
-
-					state.enabled = 1;
-					if (debug_pwm_duty)
-						state.duty_cycle = debug_pwm_duty;
-					else
-						state.duty_cycle = state.period * duty / 100;
-
-					state.polarity = PWM_POLARITY_NORMAL;
-
-					ALS_dbg("%s - pwm state en = %d, pe = %d, du = %d, po = %d\n", __func__,
-						state.enabled, state.period, state.duty_cycle, state.polarity);
-
-					pwm_apply_state(data->pwm, &state);
-
-					curr_state = data->eol_state;
-				}
-
-				data->eol_pulse_count++;
-			}
-			udelay(1000);
-		}
-		state.enabled = 0;
-
-		pwm_apply_state(data->pwm, &state);
-
-		ALS_dbg("%s - pinctrl out = 0x%x\n", __func__, data->pinctrl_out);
-		pinctrl_select_state(data->als_pinctrl, data->pinctrl_out);
+		udelay(pulse_duty);
 	}
+	s2mpb02_led_en(S2MPB02_TORCH_LED_1, 0, S2MPB02_LED_TURN_WAY_GPIO);
+	gpio_free(data->pin_led_en);
 
 	data->eol_enable = 0;
 
 	if (data->eol_state >= EOL_STATE_DONE) {
-		icRatio100 = data->eol_flicker_awb[EOL_STATE_100][1] * 100 / data->eol_flicker_awb[EOL_STATE_100][2];
-		icRatio120 = data->eol_flicker_awb[EOL_STATE_120][1] * 100 / data->eol_flicker_awb[EOL_STATE_120][2];
-
-		snprintf(data->eol_result, MAX_TEST_RESULT,
-			"%d, %s, %d, %s, %d, %s, %d, %s, %d, %s, %d, %s, %d, %s, %d, %s\n",
+		snprintf(data->eol_result, MAX_TEST_RESULT, "%d, %s, %d, %s,\n%d, %s, %d, %s\n",
 			data->eol_flicker_awb[EOL_STATE_100][0], FREQ100_SPEC_IN(data->eol_flicker_awb[EOL_STATE_100][0]),
+			data->eol_flicker_awb[EOL_STATE_100][1], IR_SPEC_IN(data->eol_flicker_awb[EOL_STATE_100][1]),
 			data->eol_flicker_awb[EOL_STATE_120][0], FREQ120_SPEC_IN(data->eol_flicker_awb[EOL_STATE_120][0]),
-			data->eol_flicker_awb[EOL_STATE_100][3], IR_SPEC_IN(data->eol_flicker_awb[EOL_STATE_100][3]),
-			data->eol_flicker_awb[EOL_STATE_120][3], IR_SPEC_IN(data->eol_flicker_awb[EOL_STATE_120][3]),
-			data->eol_flicker_awb[EOL_STATE_100][2], CLEAR_SPEC_IN(data->eol_flicker_awb[EOL_STATE_100][2]),
-			data->eol_flicker_awb[EOL_STATE_120][2], CLEAR_SPEC_IN(data->eol_flicker_awb[EOL_STATE_120][2]),
-			icRatio100, ICRATIO_SPEC_IN(icRatio100),
-			icRatio120, ICRATIO_SPEC_IN(icRatio120));
+			data->eol_flicker_awb[EOL_STATE_120][1], IR_SPEC_IN(data->eol_flicker_awb[EOL_STATE_120][1]));
 	} else
 		ALS_err("%s - abnormal termination\n", __func__);
 
-	ALS_dbg("%s - %s", __func__, data->eol_result);
+	ALS_dbg("%s - %d, %s, %d, %s, %d, %s, %d, %s\n",
+		__func__,
+		data->eol_flicker_awb[EOL_STATE_100][0], FREQ100_SPEC_IN(data->eol_flicker_awb[EOL_STATE_100][0]),
+		data->eol_flicker_awb[EOL_STATE_100][1], IR_SPEC_IN(data->eol_flicker_awb[EOL_STATE_100][1]),
+		data->eol_flicker_awb[EOL_STATE_120][0], FREQ120_SPEC_IN(data->eol_flicker_awb[EOL_STATE_120][0]),
+		data->eol_flicker_awb[EOL_STATE_120][1], IR_SPEC_IN(data->eol_flicker_awb[EOL_STATE_120][1]));
 
 	return 0;
 }
@@ -2614,11 +2282,8 @@ static ssize_t tcs3407_eol_mode_store(struct device *dev,
 struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct tcs3407_device_data *data = dev_get_drvdata(dev);
-	ams_deviceCtx_t *ctx = data->deviceCtx;
-
 	int err = 0;
 	int mode = 0;
-	u8 preEnalble = data->enabled;
 
 	err = kstrtoint(buf, 10, &mode);
 	if (err < 0) {
@@ -2627,84 +2292,51 @@ struct device_attribute *attr, const char *buf, size_t size)
 		return err;
 	}
 
-	mutex_lock(&data->activelock);
-
-	data->eol_flash_type = EOL_TORCH;
-
 	switch (mode) {
 	case 1:
-		gSpec_ir_min = data->eol_ir_spec[0];
-		gSpec_ir_max = data->eol_ir_spec[1];
-		gSpec_clear_min = data->eol_clear_spec[0];
-		gSpec_clear_max = data->eol_clear_spec[1];
-		gSpec_icratio_min = data->eol_icratio_spec[0];
-		gSpec_icratio_max = data->eol_icratio_spec[1];
+		gSpec_min = data->eol_ir_spec[0];
+		gSpec_max = data->eol_ir_spec[1];
 		break;
 
 	case 2:
-		gSpec_ir_min = data->eol_ir_spec[2];
-		gSpec_ir_max = data->eol_ir_spec[3];
-		gSpec_clear_min = data->eol_clear_spec[2];
-		gSpec_clear_max = data->eol_clear_spec[3];
-		gSpec_icratio_min = data->eol_icratio_spec[2];
-		gSpec_icratio_max = data->eol_icratio_spec[3];
-		break;
-
-	case 100:
-		// USE OPEN SPEC
-		gSpec_ir_min = DEFAULT_IR_SPEC_MIN;
-		gSpec_ir_max = DEFAULT_IR_SPEC_MAX;
-		gSpec_clear_min = DEFAULT_IR_SPEC_MIN;
-		gSpec_clear_max = DEFAULT_IR_SPEC_MAX;
-		gSpec_icratio_min = DEFAULT_IC_SPEC_MIN;
-		gSpec_icratio_max = DEFAULT_IC_SPEC_MAX;
-
-		if (data->pin_flash_en >= 0) {
-			data->eol_flash_type = EOL_FLASH;
-			ALS_dbg("%s - use flash gpio", __func__);
-		} else {
-			ALS_dbg("%s - flash gpio not setted. use torch gpio", __func__);
-		}
+		gSpec_min = data->eol_ir_spec[2];
+		gSpec_max = data->eol_ir_spec[3];
 		break;
 
 	default:
 		break;
 	}
 
-	ALS_dbg("%s - mode = %d-%d, gSpec_ir = %d - %d, gSpec_clear = %d - %d, gSpec_icratio = %d - %d eol_flash_type : %d\n",	__func__, mode,
-		preEnalble, gSpec_ir_min, gSpec_ir_max, gSpec_clear_min, gSpec_clear_max, gSpec_icratio_min, gSpec_icratio_max, data->eol_flash_type);
+	ALS_dbg("%s - mode = %d, gSpec_min = %d, gSpec_max = %d\n", __func__, mode, gSpec_min, gSpec_max);
 
-	if (!preEnalble) {
-		tcs3407_irq_set_state(data, PWR_ON);
+	mutex_lock(&data->activelock);
+	tcs3407_irq_set_state(data, PWR_ON);
 
-		err = tcs3407_power_ctrl(data, PWR_ON);
-		if (err < 0)
-			ALS_err("%s - als_regulator_on fail err = %d\n",
-				__func__, err);
+	err = tcs3407_power_ctrl(data, PWR_ON);
+	if (err < 0)
+		ALS_err("%s - als_regulator_on fail err = %d\n",
+			__func__, err);
 
-		err = ams_deviceInit(data->deviceCtx, data->client, NULL);
-		if (err < 0) {
-			ALS_err("%s - ams_deviceInit failed.\n", __func__);
-			goto err_device_init;
-		} else {
-			ALS_dbg("%s - ams_amsDeviceInit ok\n", __func__);
-		}
-
-		err = als_enable_set(data, AMSDRIVER_ALS_ENABLE);
-		if (err == 0) {
-			data->enabled = 1;
-		} else if (err < 0) {
-			input_report_rel(data->als_input_dev,
-				REL_Y, -5 + 1); /* F_ERR_I2C -5 detected i2c error */
-			input_sync(data->als_input_dev);
-			ALS_err("%s - enable error %d\n", __func__, err);
-		}
+	err = ams_deviceInit(data->deviceCtx, data->client, NULL);
+	if (err < 0) {
+		ALS_err("%s - ams_deviceInit failed.\n", __func__);
+		goto err_device_init;
+	} else {
+		ALS_dbg("%s - ams_amsDeviceInit ok\n", __func__);
 	}
-	AMS_SET_ALS_AUTOGAIN(LOW, err);
-	AMS_SET_ALS_GAIN(EOL_GAIN, err);
-	ALS_dbg("%s - fixed ALS GAIN : %d\n", __func__, EOL_GAIN);
 
+	err = als_enable_set(data, AMSDRIVER_ALS_ENABLE);
+	if (err == 0) {
+		data->enabled = 1;
+	} else if (err < 0) {
+		input_report_rel(data->als_input_dev,
+			REL_Y, -5 + 1); /* F_ERR_I2C -5 detected i2c error */
+		input_sync(data->als_input_dev);
+		ALS_err("%s - enable error %d\n", __func__, err);
+	}
+	mutex_unlock(&data->activelock);
 	tcs3407_eol_mode(data);
+	mutex_lock(&data->activelock);
 
 	if (data->regulator_state == 0) {
 		ALS_dbg("%s - already power off - disable skip\n",
@@ -2716,33 +2348,14 @@ struct device_attribute *attr, const char *buf, size_t size)
 	if (err != 0)
 		ALS_err("%s - disable err : %d\n", __func__, err);
 
-	if (preEnalble) {
-		err = ams_deviceInit(data->deviceCtx, data->client, NULL);
-		if (err < 0) {
-			ALS_err("%s - ams_deviceInit failed.\n", __func__);
-			goto err_device_init;
-		} else {
-			ALS_dbg("%s - ams_amsDeviceInit ok\n", __func__);
-		}
+	data->enabled = 0;
 
-		err = als_enable_set(data, AMSDRIVER_ALS_ENABLE);
-		if (err == 0) {
-			data->enabled = 1;
-		} else if (err < 0) {
-			input_report_rel(data->als_input_dev,
-				REL_Y, -5 + 1); /* F_ERR_I2C -5 detected i2c error */
-			input_sync(data->als_input_dev);
-			ALS_err("%s - enable error %d\n", __func__, err);
-		}
-	} else {
-		data->enabled = 0;
+	err = tcs3407_power_ctrl(data, PWR_OFF);
+	if (err < 0)
+		ALS_err("%s - als_regulator_off fail err = %d\n",
+			__func__, err);
+	tcs3407_irq_set_state(data, PWR_OFF);
 
-		err = tcs3407_power_ctrl(data, PWR_OFF);
-		if (err < 0)
-			ALS_err("%s - als_regulator_off fail err = %d\n",
-				__func__, err);
-		tcs3407_irq_set_state(data, PWR_OFF);
-	}
 err_device_init:
 err_already_off:
 	mutex_unlock(&data->activelock);
@@ -2755,15 +2368,11 @@ struct device_attribute *attr, char *buf)
 {
 	struct tcs3407_device_data *data = dev_get_drvdata(dev);
 
-	ALS_dbg("%s - eol_spec = %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n", __func__,
-		data->eol_ir_spec[0], data->eol_ir_spec[1], data->eol_ir_spec[2], data->eol_ir_spec[3],
-		data->eol_clear_spec[0], data->eol_clear_spec[1], data->eol_clear_spec[2], data->eol_clear_spec[3],
-		data->eol_icratio_spec[0], data->eol_icratio_spec[1], data->eol_icratio_spec[2], data->eol_icratio_spec[3]);
+	ALS_dbg("%s - ir_spec = %d, %d, %d, %d\n", __func__,
+		data->eol_ir_spec[0], data->eol_ir_spec[1], data->eol_ir_spec[2], data->eol_ir_spec[3]);
 
-	return snprintf(buf, PAGE_SIZE, "%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n",
-		data->eol_ir_spec[0], data->eol_ir_spec[1], data->eol_ir_spec[2], data->eol_ir_spec[3],
-		data->eol_clear_spec[0], data->eol_clear_spec[1], data->eol_clear_spec[2], data->eol_clear_spec[3],
-		data->eol_icratio_spec[0], data->eol_icratio_spec[1], data->eol_icratio_spec[2], data->eol_icratio_spec[3]);
+	return snprintf(buf, PAGE_SIZE, "%d, %d, %d, %d\n",
+		data->eol_ir_spec[0], data->eol_ir_spec[1], data->eol_ir_spec[2], data->eol_ir_spec[3]);
 }
 #endif
 
@@ -2789,7 +2398,6 @@ static DEVICE_ATTR(als_red, S_IRUGO, als_red_show, NULL);
 static DEVICE_ATTR(als_green, S_IRUGO, als_green_show, NULL);
 static DEVICE_ATTR(als_blue, S_IRUGO, als_blue_show, NULL);
 static DEVICE_ATTR(als_clear, S_IRUGO, als_clear_show, NULL);
-static DEVICE_ATTR(als_wideband, S_IRUGO, als_wideband_show, NULL);
 static DEVICE_ATTR(als_raw_data, S_IRUGO, als_raw_data_show, NULL);
 #ifdef CONFIG_AMS_OPTICAL_SENSOR_FLICKER
 static DEVICE_ATTR(flicker_data, S_IRUGO, flicker_data_show, NULL);
@@ -2820,7 +2428,6 @@ static struct device_attribute *tcs3407_sensor_attrs[] = {
 	&dev_attr_als_green,
 	&dev_attr_als_blue,
 	&dev_attr_als_clear,
-	&dev_attr_als_wideband,
 	&dev_attr_als_raw_data,
 #ifdef CONFIG_AMS_OPTICAL_SENSOR_FLICKER
 	&dev_attr_flicker_data,
@@ -2958,7 +2565,6 @@ loop:
 static int tcs3407_eol_mode_handler(struct tcs3407_device_data *data)
 {
 	int i;
-	ams_deviceCtx_t *ctx = data->deviceCtx;
 
 	switch (data->eol_state) {
 	case EOL_STATE_INIT:
@@ -2968,13 +2574,9 @@ static int tcs3407_eol_mode_handler(struct tcs3407_device_data *data)
 		for (i = 0; i < EOL_STATE_DONE; i++) {
 			data->eol_flicker_awb[i][0] = 0;
 			data->eol_flicker_awb[i][1] = 0;
-			data->eol_flicker_awb[i][2] = 0;
-			data->eol_flicker_awb[i][3] = 0;
 		}
 		data->eol_count = 0;
 		data->eol_awb = 0;
-		data->eol_clear = 0;
-		data->eol_wideband = 0;
 		data->eol_flicker = 0;
 		data->eol_flicker_count = 0;
 		data->eol_state = EOL_STATE_100;
@@ -2982,26 +2584,17 @@ static int tcs3407_eol_mode_handler(struct tcs3407_device_data *data)
 		break;
 	default:
 		data->eol_count++;
-		ALS_dbg("%s - %d, %d, %d, %d, %d, %d\n", __func__,
-			data->eol_state, data->eol_count, data->eol_flicker, data->eol_awb, data->eol_clear, data->eol_wideband);
-		ALS_dbg("%s - raw: %d, %d, %d, %d, %d, %d\n", __func__, ctx->ccbAlsCtx.ctxAlgAls.uvir_cpl,
-			ctx->ccbAlsCtx.ctxAlgAls.results.rawClear, ctx->ccbAlsCtx.ctxAlgAls.results.rawWideband,
-			ctx->ccbAlsCtx.ctxAlgAls.results.irrClear, ctx->ccbAlsCtx.ctxAlgAls.results.irrIR, ctx->ccbAlsCtx.ctxAlgAls.results.irrWideband);
+		ALS_dbg("%s - %d, %d, %d, %d\n", __func__,	data->eol_state, data->eol_count, data->eol_flicker, data->eol_awb);
 
 		if (data->eol_count >= (EOL_COUNT + EOL_SKIP_COUNT)) {
 			data->eol_flicker_awb[data->eol_state][0] = data->eol_flicker / data->eol_flicker_count;
 			data->eol_flicker_awb[data->eol_state][1] = data->eol_awb / EOL_COUNT;
-			data->eol_flicker_awb[data->eol_state][2] = data->eol_clear / EOL_COUNT;
-			data->eol_flicker_awb[data->eol_state][3] = data->eol_wideband / EOL_COUNT;
-
 
 			ALS_dbg("%s - eol_state = %d, pulse_duty = %d %d, pulse_count = %d\n",
 				__func__, data->eol_state, data->eol_pulse_duty[0], data->eol_pulse_duty[1], data->eol_pulse_count);
 
 			data->eol_count = 0;
 			data->eol_awb = 0;
-			data->eol_clear = 0;
-			data->eol_wideband = 0;
 			data->eol_flicker = 0;
 			data->eol_flicker_count = 0;
 			data->eol_pulse_count = 0;
@@ -3109,9 +2702,6 @@ static void tcs3407_init_var(struct tcs3407_device_data *data)
 	data->eol_pulse_duty[0] = DEFAULT_DUTY_50HZ;
 	data->eol_pulse_duty[1] = DEFAULT_DUTY_60HZ;
 	data->eol_pulse_count = 0;
-	data->pinctrl_out = NULL;
-	data->pinctrl_pwm = NULL;
-	data->pwm = NULL;
 #endif
 #ifdef CONFIG_AMS_OPTICAL_SENSOR_FIFO
 	data->awb_sample_cnt = 0;
@@ -3124,7 +2714,6 @@ static int tcs3407_parse_dt(struct tcs3407_device_data *data)
 	struct device *dev = &data->client->dev;
 	struct device_node *dNode = dev->of_node;
 	enum of_gpio_flags flags;
-	u32 gain_max = 0;
 
 	if (dNode == NULL)
 		return -ENODEV;
@@ -3136,33 +2725,18 @@ static int tcs3407_parse_dt(struct tcs3407_device_data *data)
 		return -ENODEV;
 	}
 
-#if !defined(CONFIG_SEC_Y2Q_PROJECT)
-	data->pin_als_en = of_get_named_gpio_flags(dNode,
-		"als_rear,als_en-gpio", 0, &flags);
-	if (data->pin_als_en < 0)
-		ALS_dbg("%s - get als_en failed\n", __func__);
-#endif
-
 #ifdef CONFIG_AMS_OPTICAL_SENSOR_EOL_MODE
-	data->pin_torch_en = of_get_named_gpio_flags(dNode,
+	data->pin_led_en = of_get_named_gpio_flags(dNode,
 		"als_rear,led_en-gpio", 0, &flags);
-	if (data->pin_torch_en < 0) {
-		ALS_err("%s - get pin_torch_en error\n", __func__);
+	if (data->pin_led_en < 0) {
+		ALS_err("%s - get pin_led_en error\n", __func__);
 		return -ENODEV;
 	}
-
-	data->pin_flash_en = of_get_named_gpio_flags(dNode,
-		"als_rear,flash_en-gpio", 0, &flags);
-	if (data->pin_flash_en < 0) {
-		ALS_err("%s - get pin_flash_en error\n", __func__);
-	}
 #endif
 
-#if !defined(CONFIG_SEC_R8Q_PROJECT)
 	if (of_property_read_string(dNode, "als_rear,vdd_1p8",
 		(char const **)&data->vdd_1p8) < 0)
 		ALS_dbg("%s - vdd_1p8 doesn`t exist\n", __func__);
-#endif
 
 	if (of_property_read_string(dNode, "als_rear,i2c_1p8",
 		(char const **)&data->i2c_1p8) < 0)
@@ -3197,31 +2771,6 @@ static int tcs3407_parse_dt(struct tcs3407_device_data *data)
 		data->pins_idle = NULL;
 		return -EINVAL;
 	}
-
-#ifdef CONFIG_AMS_OPTICAL_SENSOR_EOL_MODE
-	data->pinctrl_pwm = pinctrl_lookup_state(data->als_pinctrl, "torch_pwm");
-	data->pinctrl_out = pinctrl_lookup_state(data->als_pinctrl, "torch_out");
-
-	if (IS_ERR(data->pinctrl_pwm) || IS_ERR(data->pinctrl_out)) {
-		ALS_err("%s - Failed to get pinctrl for pwm, %d %d\n",
-			__func__, PTR_ERR(data->pinctrl_pwm), PTR_ERR(data->pinctrl_out));
-		data->pinctrl_pwm = NULL;
-		data->pinctrl_out = NULL;
-	} else {
-		data->pwm = devm_of_pwm_get(dev, dNode, NULL);
-		if (IS_ERR(data->pwm)) {
-			ALS_err("%s - unable to request PWM %d\n", __func__, PTR_ERR(data->pwm));
-			data->pwm = NULL;
-		}
-	}
-#endif
-
-	if (of_property_read_u32(dNode, "als_rear,gain_max", &gain_max) == 0) {
-		deviceRegisterDefinition[DEVREG_AGC_GAIN_MAX].resetValue = gain_max;
-
-		ALS_dbg("%s - DEVREG_AGC_GAIN_MAX = 0x%x\n", __func__, gain_max);
-	}
-
 #ifdef CONFIG_AMS_OPTICAL_SENSOR_EOL_MODE
 	if (of_property_read_u32_array(dNode, "als_rear,ir_spec",
 		data->eol_ir_spec, ARRAY_SIZE(data->eol_ir_spec)) < 0) {
@@ -3234,30 +2783,6 @@ static int tcs3407_parse_dt(struct tcs3407_device_data *data)
 	}
 	ALS_dbg("%s - ir_spec = %d, %d, %d, %d\n", __func__,
 		data->eol_ir_spec[0], data->eol_ir_spec[1], data->eol_ir_spec[2], data->eol_ir_spec[3]);
-
-	if (of_property_read_u32_array(dNode, "als_rear,clear_spec",
-		data->eol_clear_spec, ARRAY_SIZE(data->eol_clear_spec)) < 0) {
-		ALS_err("%s - get clear_spec error\n", __func__);
-
-		data->eol_clear_spec[0] = DEFAULT_IR_SPEC_MIN;
-		data->eol_clear_spec[1] = DEFAULT_IR_SPEC_MAX;
-		data->eol_clear_spec[2] = DEFAULT_IR_SPEC_MIN;
-		data->eol_clear_spec[3] = DEFAULT_IR_SPEC_MAX;
-	}
-	ALS_dbg("%s - clear_spec = %d, %d, %d, %d\n", __func__,
-		data->eol_clear_spec[0], data->eol_clear_spec[1], data->eol_clear_spec[2], data->eol_clear_spec[3]);
-
-	if (of_property_read_u32_array(dNode, "als_rear,icratio_spec",
-		data->eol_icratio_spec, ARRAY_SIZE(data->eol_icratio_spec)) < 0) {
-		ALS_err("%s - get icratio_spec error\n", __func__);
-
-		data->eol_icratio_spec[0] = DEFAULT_IC_SPEC_MIN;
-		data->eol_icratio_spec[1] = DEFAULT_IC_SPEC_MIN;
-		data->eol_icratio_spec[2] = DEFAULT_IC_SPEC_MIN;
-		data->eol_icratio_spec[3] = DEFAULT_IC_SPEC_MIN;
-	}
-	ALS_dbg("%s - icratio_spec = %d, %d, %d, %d\n", __func__,
-		data->eol_icratio_spec[0], data->eol_icratio_spec[1], data->eol_icratio_spec[2], data->eol_icratio_spec[3]);
 #endif
 
 	ALS_dbg("%s - done.\n", __func__);
@@ -3265,40 +2790,9 @@ static int tcs3407_parse_dt(struct tcs3407_device_data *data)
 	return 0;
 }
 
-static void tcs3407_pin_control(struct tcs3407_device_data *data, bool pin_set)
-{
-	int status = 0;
-
-	if (!data->als_pinctrl) {
-		ALS_err("%s - als_pinctrl is null\n", __func__);
-		return;
-	}
-	if (pin_set) {
-		if (!IS_ERR_OR_NULL(data->pins_idle)) {
-			status = pinctrl_select_state(data->als_pinctrl,
-				data->pins_idle);
-			if (status)
-				ALS_err("%s - can't set pin default state\n",
-					__func__);
-			ALS_info("%s idle\n", __func__);
-		}
-	} else {
-		if (!IS_ERR_OR_NULL(data->pins_sleep)) {
-			status = pinctrl_select_state(data->als_pinctrl,
-				data->pins_sleep);
-			if (status)
-				ALS_err("%s - can't set pin sleep state\n",
-					__func__);
-			ALS_info("%s sleep\n", __func__);
-		}
-	}
-}
-
 static int tcs3407_setup_gpio(struct tcs3407_device_data *data)
 {
 	int errorno = -EIO;
-
-	tcs3407_pin_control(data, true);
 
 	errorno = gpio_request(data->pin_als_int, "als_rear_int");
 	if (errorno) {
@@ -3313,15 +2807,6 @@ static int tcs3407_setup_gpio(struct tcs3407_device_data *data)
 	}
 	data->dev_irq = gpio_to_irq(data->pin_als_int);
 
-#if !defined(CONFIG_SEC_Y2Q_PROJECT)
-	if (data->pin_als_en >= 0) {
-		errorno = gpio_request(data->pin_als_en, "als_rear_en");
-		if (errorno) {
-			ALS_err("%s - failed to request als_en\n", __func__);
-			goto err_gpio_direction_input;
-		}
-	}
-#endif
 	goto done;
 
 err_gpio_direction_input:
@@ -3445,7 +2930,7 @@ static bool ams_deviceGetAls(ams_deviceCtx_t *ctx, ams_apiAls_t *exportData)
 	exportData->ir          = result.ir;
 	exportData->time_us		= result.time_us;
 	exportData->gain		= result.gain;
-	exportData->wideband    = result.wideband;
+//	exportData->wideband    = result.wideband;
 	exportData->rawClear    = result.rawClear;
 	exportData->rawRed      = result.rawRed;
 	exportData->rawGreen    = result.rawGreen;
@@ -3601,12 +3086,12 @@ static ams_deviceIdentifier_e ams_validateDevice(AMS_PORT_portHndl *portHndl)
 
 	err = ams_getByte(portHndl, DEVREG_ID, &chipId);
 	if (err < 0) {
-		ALS_err("%s - failed to get DEVREG_ID (chipId = 0x%x)\n", __func__, chipId);
+		ALS_err("%s - failed to get DEVREG_ID\n", __func__);
 		return AMS_UNKNOWN_DEVICE;
 	}
 	err = ams_getByte(portHndl, DEVREG_REVID, &revId);
 	if (err < 0) {
-		ALS_err("%s - failed to get DEVREG_REVID (revId = 0x%x)\n", __func__, revId);
+		ALS_err("%s - failed to get DEVREG_REVID\n", __func__);
 		return AMS_UNKNOWN_DEVICE;
 	}
 
@@ -3618,11 +3103,11 @@ static ams_deviceIdentifier_e ams_validateDevice(AMS_PORT_portHndl *portHndl)
 
 			err = ams_getByte(portHndl, DEVREG_AUXID, &auxId);
 			if (err < 0) {
-				ALS_err("%s - failed to get DEVREG_ID (auxId = 0x%x)\n", __func__, auxId);
+				ALS_err("%s - failed to get DEVREG_ID\n", __func__);
 				return AMS_UNKNOWN_DEVICE;
 			}
 
-			if (auxId)
+			if (auxId & 0x03)
 				data->isTrimmed = 1;
 			else
 				data->isTrimmed = 0;
@@ -3658,16 +3143,6 @@ static int ams_deviceInit(ams_deviceCtx_t *ctx, AMS_PORT_portHndl *portHndl, ams
 		return ret;
 	}
 
-#ifdef TCS3408_USE_SMUX
-/*
-S-MUX Read/Write
-1  read configuration to ram Read smux configuration to RAM from smux chain
-2  write configuration from ram Write smux configuration from RAM to smux chain
-*/
-
-	ams_smux_set(ctx);
-#endif
-
 #ifdef CONFIG_AMS_OPTICAL_SENSOR_ALS_CCB
 	ret = _3407_alsInit(ctx, calibrationData);
 	if (ret < 0) {
@@ -3685,28 +3160,14 @@ S-MUX Read/Write
 	return ret;
 }
 
-static bool ams_getDeviceInfo(ams_deviceInfo_t *info, ams_deviceIdentifier_e deviceId)
+static bool ams_getDeviceInfo(ams_deviceInfo_t *info)
 {
 	memset(info, 0, sizeof(ams_deviceInfo_t));
 
 	info->defaultCalibrationData.timeBase_us = AMS_USEC_PER_TICK;
 	info->numberOfSubSensors = 0;
 	info->memorySize =  sizeof(ams_deviceCtx_t);
-
-	switch (deviceId) {
-	case AMS_TCS3407:
-	case AMS_TCS3407_UNTRIM:
-		info->deviceModel = "TCS3407";
-		break;
-	case AMS_TCS3408:
-	case AMS_TCS3408_UNTRIM:
-		info->deviceModel = "TCS3408";
-		break;
-	default:
-		info->deviceModel = "UNKNOWN";
-		break;
-	}
-
+	info->deviceModel = "TCS3407";
 	memcpy(info->defaultCalibrationData.deviceName, info->deviceModel, sizeof(info->defaultCalibrationData.deviceName));
 	info->deviceName  = "ALS/PRX/FLKR";
 	info->driverVersion = "Alpha";
@@ -3842,7 +3303,7 @@ int tcs3407_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 	ALS_dbg("%s - deviceId: %d\n", __func__, deviceId);
 
-	ams_getDeviceInfo(&amsDeviceInfo, deviceId);
+	ams_getDeviceInfo(&amsDeviceInfo);
 	ALS_dbg("%s - name: %s, model: %s, driver ver:%s\n", __func__,
 				amsDeviceInfo.deviceName, amsDeviceInfo.deviceModel, amsDeviceInfo.driverVersion);
 
@@ -3887,12 +3348,7 @@ int tcs3407_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ALS_err("%s - could not register input device\n", __func__);
 		goto err_input_register_device;
 	}
-#ifdef CONFIG_ARCH_QCOM
-	err = sensors_create_symlink(&data->als_input_dev->dev.kobj,
-				data->als_input_dev->name);
-#else
 	err = sensors_create_symlink(data->als_input_dev);
-#endif
 	if (err < 0) {
 		ALS_err("%s - could not create_symlink\n", __func__);
 		goto err_sensors_create_symlink;
@@ -3937,12 +3393,7 @@ als_sensor_register_failed:
 	sysfs_remove_group(&data->als_input_dev->dev.kobj,
 				&als_attribute_group);
 err_sysfs_create_group:
-#ifdef CONFIG_ARCH_QCOM
-	sensors_remove_symlink(&data->als_input_dev->dev.kobj,
-				data->als_input_dev->name);
-#else
 	sensors_remove_symlink(data->als_input_dev);
-#endif
 err_sensors_create_symlink:
 	input_unregister_device(data->als_input_dev);
 err_input_register_device:
@@ -3954,10 +3405,6 @@ err_init_fail:
 	tcs3407_power_ctrl(data, PWR_OFF);
 err_power_on:
 	gpio_free(data->pin_als_int);
-#if !defined(CONFIG_SEC_Y2Q_PROJECT)
-	if (data->pin_als_en >= 0)
-		gpio_free(data->pin_als_en);
-#endif
 err_setup_gpio:
 err_parse_dt:
 //	devm_kfree(pdata);
@@ -3993,12 +3440,7 @@ int tcs3407_remove(struct i2c_client *client)
 	sensors_unregister(data->dev, tcs3407_sensor_attrs);
 	sysfs_remove_group(&data->als_input_dev->dev.kobj,
 			   &als_attribute_group);
-#ifdef CONFIG_ARCH_QCOM
-	sensors_remove_symlink(&data->als_input_dev->dev.kobj,
-				data->als_input_dev->name);
-#else
 	sensors_remove_symlink(data->als_input_dev);
-#endif
 	input_unregister_device(data->als_input_dev);
 
 	if (data->als_pinctrl) {
@@ -4012,10 +3454,6 @@ int tcs3407_remove(struct i2c_client *client)
 	disable_irq(data->dev_irq);
 	free_irq(data->dev_irq, data);
 	gpio_free(data->pin_als_int);
-#if !defined(CONFIG_SEC_Y2Q_PROJECT)
-	if (data->pin_als_en >= 0)
-		gpio_free(data->pin_als_en);
-#endif
 	mutex_destroy(&data->i2clock);
 	mutex_destroy(&data->activelock);
 	mutex_destroy(&data->suspendlock);
@@ -4034,6 +3472,35 @@ int tcs3407_remove(struct i2c_client *client)
 static void tcs3407_shutdown(struct i2c_client *client)
 {
 	ALS_dbg("%s - start\n", __func__);
+}
+
+void tcs3407_pin_control(struct tcs3407_device_data *data, bool pin_set)
+{
+	int status = 0;
+
+	if (!data->als_pinctrl) {
+		ALS_err("%s - als_pinctrl is null\n", __func__);
+		return;
+	}
+	if (pin_set) {
+		if (!IS_ERR_OR_NULL(data->pins_idle)) {
+			status = pinctrl_select_state(data->als_pinctrl,
+				data->pins_idle);
+			if (status)
+				ALS_err("%s - can't set pin default state\n",
+					__func__);
+			ALS_info("%s idle\n", __func__);
+		}
+	} else {
+		if (!IS_ERR_OR_NULL(data->pins_sleep)) {
+			status = pinctrl_select_state(data->als_pinctrl,
+				data->pins_sleep);
+			if (status)
+				ALS_err("%s - can't set pin sleep state\n",
+					__func__);
+			ALS_info("%s sleep\n", __func__);
+		}
+	}
 }
 
 #ifdef CONFIG_PM

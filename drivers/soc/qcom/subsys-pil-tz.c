@@ -28,9 +28,7 @@
 #include "peripheral-loader.h"
 #ifdef CONFIG_SENSORS_SSC
 #include <linux/adsp/ssc_ssr_reason.h>
-#endif
-#ifdef CONFIG_SUPPORT_AK0997X
-#include <linux/gpio.h>
+#include <linux/of_gpio.h>
 #endif
 
 #define XO_FREQ			19200000
@@ -720,22 +718,6 @@ static int pil_auth_and_reset(struct pil_desc *pil)
 	if (rc)
 		return rc;
 
-#ifdef CONFIG_SUPPORT_AK0997X
-	if (d->subsys_desc.d_hall_rst_gpio > 0) {
-		usleep_range(1000, 1100);
-		gpio_set_value(d->subsys_desc.d_hall_rst_gpio, 0);
-		pr_info("%s, %s d_hall_rst_gpio(%d) value(%d)\n", __func__,
-			d->subsys_desc.name, d->subsys_desc.d_hall_rst_gpio,
-			gpio_get_value(d->subsys_desc.d_hall_rst_gpio));
-
-		usleep_range(5, 10);
-		gpio_set_value(d->subsys_desc.d_hall_rst_gpio, 1);
-		pr_info("%s, %s d_hall_rst_gpio(%d) value(%d)\n", __func__,
-			d->subsys_desc.name, d->subsys_desc.d_hall_rst_gpio,
-			gpio_get_value(d->subsys_desc.d_hall_rst_gpio));
-	}
-#endif
-
 	rc = prepare_enable_clocks(pil->dev, d->clks, d->clk_count);
 	if (rc)
 		goto err_clks;
@@ -747,6 +729,15 @@ static int pil_auth_and_reset(struct pil_desc *pil)
 	scm_pas_disable_bw();
 	if (rc)
 		goto err_reset;
+
+#ifdef CONFIG_SENSORS_SSC
+	if (d->subsys_desc.gpio_sensor_ldo) {
+		gpio_set_value(d->subsys_desc.gpio_sensor_ldo, 1);
+		pr_info("%s, %s gpio_sensor_ldo(%d) enable(%d)\n", __func__,
+			d->subsys_desc.name, d->subsys_desc.gpio_sensor_ldo,
+			gpio_get_value(d->subsys_desc.gpio_sensor_ldo));
+	}
+#endif
 
 	return scm_ret;
 err_reset:
@@ -792,6 +783,14 @@ static int pil_shutdown_trusted(struct pil_desc *pil)
 	disable_regulators(d, d->proxy_regs, d->proxy_reg_count, false);
 
 	do_bus_scaling_request(pil, 0);
+
+#ifdef CONFIG_SENSORS_SSC
+	if (d->subsys_desc.gpio_sensor_ldo) {
+		gpio_set_value(d->subsys_desc.gpio_sensor_ldo, 0);
+		pr_info("%s, %s gpio_sensor_ldo disable\n",
+			__func__, d->subsys_desc.name);
+	}
+#endif
 
 	if (rc)
 		return rc;
@@ -949,6 +948,9 @@ static irqreturn_t subsys_err_fatal_intr_handler (int irq, void *dev_id)
 							d->subsys_desc.name);
 		return IRQ_HANDLED;
 	}
+#ifdef CONFIG_SENSORS_SSC
+	subsys_set_ssr_reason(d->subsys, SSR_ERROR_FATAL);
+#endif
 	subsys_set_crash_status(d->subsys, CRASH_STATUS_ERR_FATAL);
 	log_failure_reason(d);
 	subsystem_restart_dev(d->subsys);
@@ -967,6 +969,9 @@ static irqreturn_t subsys_wdog_bite_irq_handler(int irq, void *dev_id)
 	if (d->subsys_desc.system_debug)
 		panic("%s: System ramdump requested. Triggering device restart!\n",
 							__func__);
+#ifdef CONFIG_SENSORS_SSC
+	subsys_set_ssr_reason(d->subsys, SSR_WDOG_BITE);
+#endif
 	subsys_set_crash_status(d->subsys, CRASH_STATUS_WDOG_BITE);
 	log_failure_reason(d);
 	subsystem_restart_dev(d->subsys);
@@ -977,7 +982,9 @@ static irqreturn_t subsys_wdog_bite_irq_handler(int irq, void *dev_id)
 static irqreturn_t subsys_stop_ack_intr_handler(int irq, void *dev_id)
 {
 	struct pil_tz_data *d = subsys_to_data(dev_id);
-
+#ifdef CONFIG_SENSORS_SSC
+	subsys_set_ssr_reason(d->subsys, SSR_BY_AP);
+#endif
 	pr_info("Received stop ack interrupt from %s\n", d->subsys_desc.name);
 	complete(&d->stop_ack);
 	return IRQ_HANDLED;
