@@ -21,6 +21,8 @@
 #include "msm_vidc_res_parse.h"
 #include "soc/qcom/secure_buffer.h"
 
+#include <linux/sec_debug.h>
+
 enum clock_properties {
 	CLOCK_PROP_HAS_SCALING = 1 << 0,
 	CLOCK_PROP_HAS_MEM_RETENTION    = 1 << 1,
@@ -1064,6 +1066,8 @@ int msm_vidc_smmu_fault_handler(struct iommu_domain *domain,
 			return 0;
 		}
 	}
+
+	sec_debug_store_extc_idx(true);
 
 	dprintk(VIDC_ERR, "%s - faulting address: %lx\n", __func__, iova);
 
