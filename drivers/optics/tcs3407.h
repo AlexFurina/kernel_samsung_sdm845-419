@@ -55,7 +55,7 @@
 #include <linux/of_device.h>
 #endif
 
-#define HEADER_VERSION		"17"
+#define HEADER_VERSION		"11"
 
 #define CONFIG_AMS_ALS_CRGBW
 #ifndef CONFIG_AMS_OPTICAL_SENSOR_FIFO
@@ -136,7 +136,6 @@ typedef struct _amsAlsResult {
 	uint32_t irrBlue;
 	uint32_t IR;
 	uint32_t irrWideband;
-	uint32_t irrIR;
 	uint32_t mLux;
 	uint32_t mMaxLux;
 	uint32_t mLux_ave;
@@ -319,8 +318,8 @@ typedef enum _deviceIdentifier_e {
 	AMS_UNKNOWN_DEVICE,
 	AMS_TCS3407,
 	AMS_TCS3407_UNTRIM,
-	AMS_TCS3408,
-	AMS_TCS3408_UNTRIM,
+	AMS_TMD4907,
+	AMS_TMD4906,
 	AMS_LAST_DEVICE
 } ams_deviceIdentifier_e;
 
@@ -333,16 +332,14 @@ typedef enum _deviceIdentifier_e {
 #define AMS_REV_ID_MASK     0xFF
 
 
-/*TCS3408 */
-/*0x92 ID(0x18), 0x91 REVID(0x53)*/
+/*TMD4907 */
+/*0x92 ID(0x18), 0x91 REVID(0x51)*/
 #define AMS_DEVICE_ID2       0x18
 #define AMS_DEVICE_ID2_MASK  0xFF
-#define AMS_REV_ID2          0x53
-#define AMS_REV_ID2_UNTRIM          0x03
+#define AMS_REV_ID2          0x00
 #define AMS_REV_ID2_MASK     0xFF
 
 
-/*NOT USED*/
 #define AMS_DEVICE_ID3       0xEC
 #define AMS_DEVICE_ID3_MASK  0xFC
 #define AMS_REV_ID3          0x00
@@ -357,9 +354,6 @@ typedef enum _deviceIdentifier_e {
 #define AMS_ALS_REG_TO_PERS(x)		(x >> 0)
 
 typedef enum _deviceRegisters {
-	DEVREG_RAM_START,
-	DEVREG_SMUX13_PRX_TO_FLICKER,
-
 	DEVREG_ENABLE,
 	DEVREG_ATIME,
 	DEVREG_PTIME,
@@ -870,8 +864,8 @@ typedef struct _deviceInfo {
 } ams_deviceInfo_t;
 
 
-// #define ALS_DBG
-// #define ALS_INFO
+/* #define ALS_DBG */
+/* #define ALS_INFO */
 
 #ifndef ALS_dbg
 #ifdef ALS_DBG
@@ -902,7 +896,8 @@ typedef struct _deviceInfo {
 
 enum {
 	DEBUG_REG_STATUS = 1,
-	DEBUG_VAR,
+	DEBUG_ENABLE_AGC,
+	DEBUG_DISABLE_AGC,
 };
 
 struct mode_count {
@@ -953,11 +948,6 @@ enum  {
 	EOL_STATE_120,
 	EOL_STATE_DONE
 };
-
-enum {
-	EOL_TORCH,
-	EOL_FLASH
-};
 #endif
 
 struct tcs3407_device_data {
@@ -986,13 +976,10 @@ struct tcs3407_device_data {
 	u32 sampling_period_ns;
 	u8 regulator_state;
 	s32 pin_als_int;
-#if !defined(CONFIG_SEC_Y2Q_PROJECT)
-	s32 pin_als_en;
-#endif
 	s32 dev_irq;
 	u8 irq_state;
 	u32 reg_read_buf;
-	u32 debug_mode;
+	u8 debug_mode;
 	struct mode_count mode_cnt;
 #ifdef CONFIG_ARCH_QCOM
 	struct pm_qos_request pm_qos_req_fpm;
@@ -1008,25 +995,16 @@ struct tcs3407_device_data {
 	char *eol_result;
 	u8 eol_enable;
 	u8 eol_result_status;
-	s16 eol_flash_type;
 	s16 eol_state;
 	u32 eol_count;
 	u32 eol_awb;
-	u32 eol_clear;
-	u32 eol_wideband;
 	u32 eol_flicker;
 	u8 eol_flicker_count;
-	u32 eol_flicker_awb[6][4];
+	u32 eol_flicker_awb[6][2];
 	u32 eol_pulse_duty[2];
 	u32 eol_pulse_count;
 	u32 eol_ir_spec[4];
-	u32 eol_clear_spec[4];
-	u32 eol_icratio_spec[4];
-	s32 pin_torch_en;
-	s32 pin_flash_en;
-	struct pinctrl_state *pinctrl_pwm;
-	struct pinctrl_state *pinctrl_out;
-	struct pwm_device *pwm;
+	s32 pin_led_en;
 #endif
 
 #ifdef CONFIG_AMS_OPTICAL_SENSOR_FIFO
@@ -1042,15 +1020,12 @@ struct tcs3407_device_data {
 #define AMSDRIVER_FLICKER_ENABLE 1
 #define AMSDRIVER_FLICKER_DISABLE 0
 
-
+extern int sensors_create_symlink(struct input_dev *inputdev);
+extern void sensors_remove_symlink(struct input_dev *inputdev);
 #ifdef CONFIG_ARCH_QCOM
-extern int sensors_create_symlink(struct kobject *target, const char *name);
-extern void sensors_remove_symlink(struct kobject *target, const char *name);
 extern int sensors_register(struct device **dev, void *drvdata,
 	struct device_attribute *attributes[], char *name);
 #else
-extern int sensors_create_symlink(struct input_dev *inputdev);
-extern void sensors_remove_symlink(struct input_dev *inputdev);
 extern int sensors_register(struct device *dev, void *drvdata,
 	struct device_attribute *attributes[], char *name);
 #endif

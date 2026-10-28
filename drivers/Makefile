@@ -199,7 +199,6 @@ obj-$(CONFIG_UNISYS_VISORBUS)	+= visorbus/
 obj-$(CONFIG_SIOX)		+= siox/
 obj-$(CONFIG_GNSS)		+= gnss/
 obj-$(CONFIG_SENSORS_SSC)	+= sensors/
-obj-$(CONFIG_SENSORS_TCS3407)	+= optics/
 obj-$(CONFIG_ADSP_FACTORY)      += adsp_factory/
 
 obj-$(CONFIG_SWITCH)		+= switch/
@@ -230,3 +229,6 @@ obj-$(CONFIG_GPS_BCM4753)	+= gps/
 
 # SPU signature verify
 obj-$(CONFIG_SPU_VERIFY) += spu_verify/
+
+# optics
+obj-y += optics/

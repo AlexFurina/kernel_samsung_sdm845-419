@@ -55,32 +55,10 @@ static ssize_t mobeam_name_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%s\n", CHIP_ID);
 }
 
-int get_mobeam_sidx(struct adsp_data *data)
-{
-	int ret = MSG_MOBEAM;
-#ifdef CONFIG_SUPPORT_SUB_MOBEAM
-	switch (data->fac_fstate) {
-	case FSTATE_INACTIVE:
-	case FSTATE_FAC_INACTIVE:
-		ret = MSG_MOBEAM;
-		break;
-	case FSTATE_ACTIVE:
-	case FSTATE_FAC_ACTIVE:
-		ret = MSG_MOBEAM_SUB;
-		break;
-	default:
-		break;
-	}
-#endif
-	pr_info("[FACTORY] %s: idx:%d\n", __func__, ret);
-	return ret;
-}
-
 static ssize_t barcode_emul_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct adsp_data *data = dev_get_drvdata(dev);
-	uint16_t mobeam_idx = get_mobeam_sidx(data);
 	uint8_t cnt = 0;
 	char *send_buf;
 	int len, buf_size, i;
@@ -96,14 +74,14 @@ static ssize_t barcode_emul_store(struct device *dev,
 			return size;
 		is_beaming = 1;
 		pr_info("[FACTORY] %s: start\n", __func__);
-		adsp_unicast(NULL, 0, mobeam_idx, 0, MSG_TYPE_FACTORY_ENABLE);
+		adsp_unicast(NULL, 0, MSG_MOBEAM, 0, MSG_TYPE_FACTORY_ENABLE);
 		return size;
 	} else if (buf[0] == 0xFF && buf[1] == 0) {
 		if (is_beaming == 0)
 			return size;
 		is_beaming = 0;
 		pr_info("[FACTORY] %s: stop\n", __func__);
-		adsp_unicast(NULL, 0, mobeam_idx, 0, MSG_TYPE_FACTORY_DISABLE);
+		adsp_unicast(NULL, 0, MSG_MOBEAM, 0, MSG_TYPE_FACTORY_DISABLE);
 		return size;
 	} else if (buf[0] == 0x00) {
 		buf_size = 128;
@@ -140,13 +118,13 @@ static ssize_t barcode_emul_store(struct device *dev,
 	pr_info("[FACTORY] %s: %d\n", __func__, send_buf[0]);
 
 	adsp_unicast(send_buf, buf_size + 1,
-		mobeam_idx, 0, MSG_TYPE_SET_REGISTER);
+		MSG_MOBEAM, 0, MSG_TYPE_SET_REGISTER);
 
-	while (!(data->ready_flag[MSG_TYPE_SET_REGISTER] & 1 << mobeam_idx) &&
+	while (!(data->ready_flag[MSG_TYPE_SET_REGISTER] & 1 << MSG_MOBEAM) &&
 		cnt++ < TIMEOUT_CNT)
 		usleep_range(500, 550);
 
-	data->ready_flag[MSG_TYPE_SET_REGISTER] &= ~(1 << mobeam_idx);
+	data->ready_flag[MSG_TYPE_SET_REGISTER] &= ~(1 << MSG_MOBEAM);
 
 	if (cnt >= TIMEOUT_CNT)
 		pr_err("[FACTORY] %s: Timeout!!!\n", __func__);

@@ -24,6 +24,15 @@ enum crash_status {
 	CRASH_STATUS_WDOG_BITE,
 };
 
+#ifdef CONFIG_SENSORS_SSC
+enum {
+	SSR_ERROR_FATAL = 0,
+	SSR_WDOG_BITE,
+	SSR_BY_AP,
+	SSR_WITHOUT_PANIC = 99,
+};
+#endif
+
 struct device;
 struct module;
 
@@ -123,10 +132,10 @@ struct subsys_desc {
 #ifdef CONFIG_SETUP_SSR_NOTIF_TIMEOUTS
 	struct subsys_notif_timeout timeout_data;
 #endif /* CONFIG_SETUP_SSR_NOTIF_TIMEOUTS */
-	bool run_fssr;
-#ifdef CONFIG_SUPPORT_AK0997X
-	int d_hall_rst_gpio;
+#ifdef CONFIG_SENSORS_SSC
+	int gpio_sensor_ldo;
 #endif
+	bool run_fssr;
 };
 
 /**
@@ -168,6 +177,10 @@ extern void subsys_default_online(struct subsys_device *dev);
 extern void subsys_set_crash_status(struct subsys_device *dev,
 					enum crash_status crashed);
 extern enum crash_status subsys_get_crash_status(struct subsys_device *dev);
+#ifdef CONFIG_SENSORS_SSC
+extern void subsys_set_ssr_reason(struct subsys_device *dev, int ssr_reason);
+extern int subsys_get_ssr_reason(struct subsys_device *dev);
+#endif // CONFIG_SENSORS_SSC
 void notify_proxy_vote(struct device *device);
 void notify_proxy_unvote(struct device *device);
 void notify_before_auth_and_reset(struct device *device);
@@ -179,7 +192,7 @@ extern int wait_for_shutdown_ack(struct subsys_desc *desc);
 extern bool is_subsystem_crash(const char *name);
 extern int is_subsystem_online(const char *name);
 #endif
-#ifdef CONFIG_SENSORS_SSC
+#ifdef CONFIG_SENSORS_SSC // maybe we should remove this later on
 extern void subsys_set_fssr(struct subsys_device *dev, bool value);
 #endif
 #else
@@ -240,6 +253,13 @@ enum crash_status subsys_get_crash_status(struct subsys_device *dev)
 {
 	return false;
 }
+#ifdef CONFIG_SENSORS_SSC
+void subsys_set_ssr_reason(struct subsys_device *dev, int ssr_reason) { }
+static inline int subsys_get_ssr_reason(struct subsys_device *dev)
+{
+	return 0;
+}
+#endif // CONFIG_SENSORS_SSC
 static inline void notify_proxy_vote(struct device *device) { }
 static inline void notify_proxy_unvote(struct device *device) { }
 static inline void notify_before_auth_and_reset(struct device *device) { }
@@ -256,12 +276,6 @@ static bool is_subsystem_crash(const char *name)
 static int is_subsystem_online(const char *name)
 {
         return false;
-}
-#endif
-#ifdef CONFIG_SENSORS_SSC
-static void subsys_set_fssr(struct subsys_device *dev, bool value)
-{
-	return;
 }
 #endif
 #endif /* CONFIG_MSM_SUBSYSTEM_RESTART */

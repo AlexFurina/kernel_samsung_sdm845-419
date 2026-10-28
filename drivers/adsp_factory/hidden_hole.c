@@ -18,23 +18,59 @@
 #include "adsp.h"
 
 #define PREDEFINE_FILE_PATH      "/efs/FactoryApp/predefine"
-#define HH_VERSION_FILE_PATH      "/efs/FactoryApp/hh_version"
+#define PATH_LEN                 50
+#define FILE_BUF_LEN             110
+#define ID_INDEX_NUMS            2
+#define RETRY_MAX                3
+#define VERSION_FILE_NAME_LEN    20
+
+enum {
+	D_FACTOR,
+	R_COEF,
+	G_COEF,
+	B_COEF,
+	C_COEF,
+	CT_COEF,
+	CT_OFFSET,
+	THD_HIGH,
+	THD_LOW,
+	IRIS_PROX_THD,
+	SUM_CRC,
+	EFS_SAVE_NUMS,
+} DATA_INDEX;
+
+enum {
+	ID_UTYPE,
+	ID_BLACK,
+	ID_WHITE,
+	ID_GOLD,
+	ID_SILVER,
+	ID_GREEN,
+	ID_BLUE,
+	ID_PINKGOLD,
+	ID_MAX,
+} COLOR_ID_INDEX;
 
 struct {
 	int version;
 	int octa_id;
 	int data[EFS_SAVE_NUMS];
 } hidden_table[ID_INDEX_NUMS] = {
-#if defined(CONFIG_SEC_WINNERLTE_PROJECT) || defined(CONFIG_SEC_WINNERX_PROJECT)
-	{190201, ID_UTYPE,
-	{944, -844, 2014, -2855, 1490, 1615, 1381, 1100, 800, 550, 6195} },
-	{190201, ID_BLACK,
-	{944, -844, 2014, -2855, 1490, 1615, 1381, 1100, 800, 550, 6195} },
+#if defined(CONFIG_SEC_CROWNQLTE_PROJECT)
+	{180509, ID_UTYPE,
+	{2266, -170, 80, -290, 1000, 1112, 1370, 2300, 1000, 550, 9218} },
+	{180509, ID_BLACK,
+	{2266, -170, 80, -290, 1000, 1112, 1370, 2300, 1000, 550, 9218} },
+#elif defined(CONFIG_SEC_LYKANLTE_PROJECT)
+	{180719, ID_UTYPE,
+	{1130, -170, 80, -290, 1000, 1116, 1500, 2300, 1000, 550, 8216} },
+	{180719, ID_BLACK,
+	{1130, -170, 80, -290, 1000, 1116, 1500, 2300, 1000, 550, 8216} },
 #else
-	{180911, ID_UTYPE, /* beyond project */
-	{3589, -947, -425, -1777, 1754, 1116, 1500, 320, 250, 550, 5930} },
-	{180911, ID_BLACK,
-	{3589, -947, -425, -1777, 1754, 1116, 1500, 320, 250, 550, 5930} },
+	{171106, ID_UTYPE,
+	{2266, -170, 80, -290, 1000, 1116, 1500, 2300, 1000, 550, 9352} },
+	{171106, ID_BLACK,
+	{2266, -170, 80, -290, 1000, 1116, 1500, 2300, 1000, 550, 9352} },
 #endif
 };
 
@@ -112,7 +148,7 @@ static int need_update_coef_efs(void)
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
 
-	type_filp = filp_open(HH_VERSION_FILE_PATH, O_RDONLY, 0440);
+	type_filp = filp_open("/efs/FactoryApp/hh_version", O_RDONLY, 0440);
 	if (PTR_ERR(type_filp) == -ENOENT || PTR_ERR(type_filp) == -ENXIO) {
 		pr_err("[FACTORY] %s : no version file\n", __func__);
 		set_fs(old_fs);
@@ -178,7 +214,7 @@ int make_coef_efs(int index)
 	char *write_buf = kzalloc(FILE_BUF_LEN, GFP_KERNEL);
 
 	snprintf(predefine_value_path, PATH_LEN,
-		"%s%d", PREDEFINE_FILE_PATH, hidden_table[index].octa_id);
+		"/efs/FactoryApp/predefine%d", hidden_table[index].octa_id);
 
 	pr_info("[FACTORY] %s: path:%s\n", __func__,
 		predefine_value_path);
@@ -267,7 +303,7 @@ int update_coef_version(void)
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
 
-	type_filp = filp_open(HH_VERSION_FILE_PATH,
+	type_filp = filp_open("/efs/FactoryApp/hh_version",
 			O_TRUNC | O_RDWR | O_CREAT, 0660);
 	if (IS_ERR(type_filp)) {
 		set_fs(old_fs);
@@ -325,7 +361,7 @@ void hidden_hole_init_work(void)
 	win_type = read_window_type();
 	if (win_type >= 0)
 		snprintf(predefine_value_path, PATH_LEN,
-			"%s%d", PREDEFINE_FILE_PATH, win_type);
+			"/efs/FactoryApp/predefine%d", win_type);
 	else {
 		pr_err("[FACTORY] %s: win_type fail\n", __func__);
 		goto exit;
@@ -392,7 +428,7 @@ static int tmd490x_hh_check_crc(void)
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
 
-	hole_filp = filp_open(HH_VERSION_FILE_PATH, O_RDONLY, 0440);
+	hole_filp = filp_open("/efs/FactoryApp/hh_version", O_RDONLY, 0440);
 	if (IS_ERR(hole_filp)) {
 		pr_info("[FACTORY] %s: open fail\n", __func__);
 		ret = PTR_ERR(hole_filp);
@@ -416,11 +452,11 @@ static int tmd490x_hh_check_crc(void)
 	while (efs_version[i] >= '0' && efs_version[i] <= 'f') {
 		if (efs_version[i] >= 'a')
 			snprintf(predefine_value_path, PATH_LEN,
-				"%s%d", PREDEFINE_FILE_PATH,
+				"/efs/FactoryApp/predefine%d",
 				efs_version[i] - 'a' + 10);
 		else
 			snprintf(predefine_value_path, PATH_LEN,
-				"%s%d", PREDEFINE_FILE_PATH,
+				"/efs/FactoryApp/predefine%d",
 				efs_version[i] - '0');
 		pr_info("[FACTORY] %s: path:%s\n",
 			__func__, predefine_value_path);
@@ -505,8 +541,8 @@ static ssize_t tmd490x_hh_ver_store(struct device *dev,
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
 
-	type_filp = filp_open(HH_VERSION_FILE_PATH,
-			O_TRUNC | O_RDWR | O_CREAT, 0660);
+	type_filp = filp_open("/efs/FactoryApp/hh_version",
+		O_TRUNC | O_RDWR | O_CREAT, 0660);
 	if (IS_ERR(type_filp)) {
 		set_fs(old_fs);
 		ret = PTR_ERR(type_filp);
@@ -546,7 +582,7 @@ static ssize_t tmd490x_hh_ver_show(struct device *dev,
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
 
-	ver_filp = filp_open(HH_VERSION_FILE_PATH, O_RDONLY, 0440);
+	ver_filp = filp_open("/efs/FactoryApp/hh_version", O_RDONLY, 0440);
 	if (IS_ERR(ver_filp)) {
 		pr_err("[FACTORY] %s: open fail\n", __func__);
 		goto err_open_fail;
@@ -617,7 +653,7 @@ static ssize_t tmd490x_hh_write_all_data_store(struct device *dev,
 		msg_buf[10]);
 
 	snprintf(predefine_value_path, PATH_LEN,
-		"%s%d", PREDEFINE_FILE_PATH, octa_id);
+		"/efs/FactoryApp/predefine%d", octa_id);
 
 	pr_info("[FACTORY] %s: path:%s\n", __func__, predefine_value_path);
 
@@ -693,7 +729,7 @@ static ssize_t tmd490x_hh_is_exist_efs_show(struct device *dev,
 	win_type = read_window_type();
 	if (win_type >= 0)
 		snprintf(predefine_value_path, PATH_LEN,
-			"%s%d", PREDEFINE_FILE_PATH, win_type);
+			"/efs/FactoryApp/predefine%d", win_type);
 	else {
 		pr_err("[FACTORY] %s: win_type fail\n", __func__);
 		kfree(predefine_value_path);
