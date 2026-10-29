@@ -18,7 +18,6 @@
 
 #include "sde_dbg.h"
 #include "sde/sde_hw_catalog.h"
-
 #if defined(CONFIG_DISPLAY_SAMSUNG)
 #include "ss_dsi_panel_common.h"
 #endif
@@ -74,12 +73,6 @@
 #define DBG_CTRL_PANIC_UNDERRUN	BIT(1)
 #define DBG_CTRL_RESET_HW_PANIC	BIT(2)
 #define DBG_CTRL_MAX			BIT(3)
-
-#define DUMP_BUF_SIZE			(4096 * 512)
-#define DUMP_CLMN_COUNT			4
-#define DUMP_LINE_SIZE			256
-#define DUMP_MAX_LINES_PER_BLK		512
-
 #ifdef CONFIG_DISPLAY_SAMSUNG
 /**
  * To print in kernel log
@@ -92,6 +85,12 @@
 #define DEFAULT_DBGBUS_SDE	SDE_DBG_DUMP_IN_LOG
 #define DEFAULT_DBGBUS_VBIFRT	SDE_DBG_DUMP_IN_LOG
 #endif
+
+#define DUMP_BUF_SIZE			(4096 * 512)
+#define DUMP_CLMN_COUNT			4
+#define DUMP_LINE_SIZE			256
+#define DUMP_MAX_LINES_PER_BLK		512
+
 
 /**
  * struct sde_dbg_reg_offset - tracking for start and end of region
@@ -4539,6 +4538,7 @@ static void _sde_dump_array(struct sde_dbg_reg_base *blk_arr[],
 	if (do_panic && sde_dbg_base.panic_on_err)
 		ss_store_xlog_panic_dbg();
 #endif
+
 	if (do_panic && sde_dbg_base.panic_on_err)
 		panic("%s", name);
 
@@ -4781,23 +4781,6 @@ static ssize_t sde_evtlog_dump_read(struct file *file, char __user *buff,
 }
 
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-void ss_sde_dbg_debugfs_open(void)
-{
-	mutex_lock(&sde_dbg_base.mutex);
-	sde_dbg_base.cur_evt_index = 0;
-	sde_dbg_base.evtlog->first = sde_dbg_base.evtlog->curr + 1;
-	sde_dbg_base.evtlog->last =
-		sde_dbg_base.evtlog->first + SDE_EVTLOG_ENTRY;
-	mutex_unlock(&sde_dbg_base.mutex);
-}
-
-ssize_t ss_sde_evtlog_dump_read(struct file *file, char __user *buff,
-		size_t count, loff_t *ppos)
-{
-	return sde_evtlog_dump_read(file, buff, count, ppos);
-}
-#endif
 
 /**
  * sde_evtlog_dump_write - debugfs write handler for evtlog dump
@@ -5746,14 +5729,7 @@ int sde_dbg_init(struct device *dev)
 	INIT_WORK(&sde_dbg_base.dump_work, _sde_dump_work);
 	sde_dbg_base.work_panic = false;
 
-#if defined(CONFIG_DISPLAY_SAMSUNG) && defined(CONFIG_SEC_DEBUG)
-	if (sec_debug_is_enabled())
-		sde_dbg_base.panic_on_err = DEFAULT_PANIC;
-	else
-		sde_dbg_base.panic_on_err = 0;
-#else
 	sde_dbg_base.panic_on_err = DEFAULT_PANIC;
-#endif
 	sde_dbg_base.enable_reg_dump = DEFAULT_REGDUMP;
 	memset(&sde_dbg_base.regbuf, 0, sizeof(sde_dbg_base.regbuf));
 

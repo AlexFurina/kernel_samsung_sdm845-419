@@ -28,28 +28,19 @@ Copyright (C) 2012, Samsung Electronics. All rights reserved.
 
 static void samsung_pba_config(struct samsung_display_driver_data *vdd, void *arg)
 {
-
-#if 1
-	/* case 03756419: QC recommended not to change has_src_split setting here.
-	 * No effect of has_src_split setting in PBA booting mode.
-	 * After verifying it on picasso board, remove below depricated code..
-	 */
-	LCD_INFO("skip to disable source split for pba\n");
-#else
 	struct sde_mdss_cfg *sde_cfg = (struct sde_mdss_cfg *)arg;
 
 	if (!IS_ERR_OR_NULL(sde_cfg)) {
 		LCD_INFO("Disable source split\n");
 		sde_cfg->has_src_split = false;
 	}
-#endif
 }
 
 static void samsung_panel_init(struct samsung_display_driver_data *vdd)
 {
 	LCD_INFO("%s\n", ss_get_panel_name(vdd));
 
-	vdd->mdnie.support_mdnie = false;
+	vdd->support_mdnie_lite = false;
 	vdd->dtsi_data.tft_common_support = true;
 	vdd->panel_func.samsung_pba_config = samsung_pba_config;
 }
@@ -76,7 +67,7 @@ static int __init samsung_panel_initialize(void)
 	else
 		return 0;
 
-	vdd = ss_get_vdd(ndx);
+	vdd = &vdd_data[ndx];
 	vdd->panel_func.samsung_panel_init = samsung_panel_init;
 
 	return 0;

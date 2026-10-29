@@ -1,4 +1,6 @@
 /*
+ * linux/drivers/gpu/drm/msm/samsung/ss_dpui_common.h
+ *
  * Header file for Samsung Common LCD Driver.
  *
  * Copyright (c) 2017 Samsung Electronics
@@ -72,30 +74,20 @@ enum dpui_key {
 	DPUI_KEY_PNVLI1E,	/* panel VLIN1 error count */
 	DPUI_KEY_PNVLO3E,	/* panel VLOUT3 error count */
 	DPUI_KEY_PNSDRE,	/* panel OTP loading error count */
-	/* POC */
-	DPUI_KEY_PNPOCT,	/* panel POC try count */
+ 	DPUI_KEY_PNPOCT,	/* panel POC try count */
 	DPUI_KEY_PNPOCF,	/* panel POC fail count */
 	DPUI_KEY_PNPOCI,	/* panel POC image index */
 	DPUI_KEY_PNPOCI_ORG,	/* panel POC image index in factory */
-	DPUI_KEY_PNPOC_ER_TRY,	/* panel POC erase try count */
-	DPUI_KEY_PNPOC_ER_FAIL,	/* panel POC erase fail count */
-	DPUI_KEY_PNPOC_WR_TRY,	/* panel POC write try count */
-	DPUI_KEY_PNPOC_WR_FAIL,	/* panel POC write fail count */
-	DPUI_KEY_PNPOC_RD_TRY,	/* panel POC read try count */
-	DPUI_KEY_PNPOC_RD_FAIL,	/* panel POC read fail count */
-	/* GAMMA FLASH */
-	DPUI_KEY_PNGFLS,	/* panel gamma flash loading result */
+ 	DPUI_KEY_PNGFLS,	/* panel gamma flash loading result */
 	/* dependent on processor */
 	DPUI_KEY_QCT_DSIE,	/* display controller dsi error count */
 	DPUI_KEY_QCT_PPTO,	/* display controller pingpong timeout count */
 	DPUI_KEY_QCT_NO_TE,	/* display controller no TE response  count */
-	DPUI_KEY_QCT_RCV_CNT,	/* display controller ESD recovery count */
+	DPUI_KEY_QCT_RCV_CNT,	/* display controller recovery count */
 	DPUI_KEY_QCT_SSLOG,	/* display controller ss debugging log */
 
 	/* GPU */
 	DPUI_KEY_QCT_GPU_PF,	/* GPU Page Fault Count */
-
-	DPUI_KEY_UB_CON,	/* UB con detect */
 
 	MAX_DPUI_KEY,
 };
@@ -131,6 +123,7 @@ struct dpui_info {
 	struct dpui_field field[MAX_DPUI_KEY];
 };
 
+#ifdef CONFIG_DISPLAY_USE_INFO
 int dpui_logging_register(struct notifier_block *n, enum dpui_type type);
 int dpui_logging_unregister(struct notifier_block *n);
 void update_dpui_log(enum dpui_log_level level, enum dpui_type type);
@@ -141,4 +134,16 @@ int set_dpui_u32_field(enum dpui_key key, u32 value);
 int get_dpui_u32_field(enum dpui_key key, u32 *value);
 int inc_dpui_u32_field(enum dpui_key key, u32 value);
 int inc_dpui_u32_field_nolock(enum dpui_key key, u32 value);
+#else
+static inline int dpui_logging_register(struct notifier_block *n, enum dpui_type type) { return 0; }
+static inline int dpui_logging_unregister(struct notifier_block *n) { return 0; }
+static inline void update_dpui_log(enum dpui_log_level level, enum dpui_type type) { return; }
+static inline void clear_dpui_log(enum dpui_log_level level, enum dpui_type type) { return; }
+static inline int get_dpui_log(char *buf, enum dpui_log_level level, enum dpui_type type) { return 0; }
+static inline int set_dpui_field(enum dpui_key key, char *buf, int size) { return 0; }
+static inline int set_dpui_u32_field(enum dpui_key key, u32 value) { return 0; }
+static inline int get_dpui_u32_field(enum dpui_key key, u32 *value) { return 0; }
+static inline int inc_dpui_u32_field(enum dpui_key key, u32 value) { return 0; }
+static inline int inc_dpui_u32_field_nolock(enum dpui_key key, u32 value) { return 0; }
+#endif /* CONFIG_DISPLAY_USE_INFO */
 #endif /* __DPUI_H__ */

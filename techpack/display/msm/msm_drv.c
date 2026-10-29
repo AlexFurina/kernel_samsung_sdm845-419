@@ -65,7 +65,6 @@
 
 static DEFINE_MUTEX(msm_release_lock);
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
 static BLOCKING_NOTIFIER_HEAD(msm_drm_notifier_list);
 
 int msm_drm_register_notifier_client(struct notifier_block *nb)
@@ -85,7 +84,7 @@ int __msm_drm_notifier_call_chain(unsigned long event, void *data)
 	return blocking_notifier_call_chain(&msm_drm_notifier_list,
 					event, data);
 }
-#endif
+
 
 static void msm_fb_output_poll_changed(struct drm_device *dev)
 {
@@ -904,10 +903,6 @@ priv_alloc_fail:
  * DRM operations:
  */
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-struct msm_file_private *msm_ioctl_power_ctrl_ctx = NULL;
-DEFINE_MUTEX(msm_ioctl_power_ctrl_ctx_lock);
-#endif
 
 static int context_init(struct drm_device *dev, struct drm_file *file)
 {
@@ -940,12 +935,6 @@ static int msm_open(struct drm_device *dev, struct drm_file *file)
 
 static void context_close(struct msm_file_private *ctx)
 {
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-	mutex_lock(&msm_ioctl_power_ctrl_ctx_lock);
-	if (msm_ioctl_power_ctrl_ctx == ctx)
-		msm_ioctl_power_ctrl_ctx = NULL;
-	mutex_unlock(&msm_ioctl_power_ctrl_ctx_lock);
-#endif
 
 	kfree(ctx);
 }
@@ -1659,11 +1648,6 @@ int msm_ioctl_power_ctrl(struct drm_device *dev, void *data,
 
 	priv = dev->dev_private;
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-	mutex_lock(&msm_ioctl_power_ctrl_ctx_lock);
-	msm_ioctl_power_ctrl_ctx = ctx;
-	mutex_unlock(&msm_ioctl_power_ctrl_ctx_lock);
-#endif
 
 	mutex_lock(&ctx->power_lock);
 

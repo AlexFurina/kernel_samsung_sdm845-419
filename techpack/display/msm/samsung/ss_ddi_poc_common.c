@@ -28,8 +28,6 @@ static int ss_poc_erase_sector(struct samsung_display_driver_data *vdd, int star
 	int target_pos = 0;
 
 	image_size = vdd->poc_driver.image_size;
-	if(!start)
-		start = vdd->poc_driver.start_addr;
 	target_pos = start + len;
 
 	if (!ss_is_ready_to_send_cmd(vdd)) {
@@ -42,19 +40,12 @@ static int ss_poc_erase_sector(struct samsung_display_driver_data *vdd, int star
 		return -EINVAL;
 	}
 
-	if ((target_pos - start) > vdd->poc_driver.image_size) {
-		LCD_ERR("sould not erase over %d, start(%d) len(%d) target_pos(%d)\n",
-			vdd->poc_driver.image_size, start, len, target_pos);
+	if (target_pos > vdd->poc_driver.image_size) {
+		LCD_ERR("sould not erase over %d, start(%d) len(%d)\n",
+			vdd->poc_driver.image_size, start, len);
 		return -EINVAL;
 	}
 
-	LCD_ERR("start(%d) len(%d) target(%d)\n", start, len, target_pos);
-
-/*	if (len % POC_ERASE_4KB) {
-		LCD_ERR("size is not 4K sector align return! \n");
-		return -EINVAL;
-	}
-*/
 	for (pos = start; pos < target_pos; pos += erase_size) {
 		if (unlikely(atomic_read(&vdd->poc_driver.cancel))) {
 			LCD_ERR("cancel poc read by user\n");
@@ -63,12 +54,12 @@ static int ss_poc_erase_sector(struct samsung_display_driver_data *vdd, int star
 		}
 
 		if (vdd->poc_driver.poc_erase) {
-			if (!(pos % POC_ERASE_64KB) && (pos + POC_ERASE_64KB <= target_pos))
+			if (pos + POC_ERASE_64KB <= target_pos)
 				erase_size = POC_ERASE_64KB;
-			else if (!(pos % POC_ERASE_32KB) && (pos + POC_ERASE_32KB <= target_pos))
+			else if (pos + POC_ERASE_32KB <= target_pos)
 				erase_size = POC_ERASE_32KB;
 			else
-				erase_size = POC_ERASE_4KB;
+				erase_size = POC_ERASE_SECTOR;
 
 			ret = vdd->poc_driver.poc_erase(vdd, pos, erase_size, target_pos);
 			if (ret) {
@@ -96,7 +87,7 @@ static int ss_poc_erase(struct samsung_display_driver_data *vdd)
 {
 	int ret = 0;
 #if 0
-	int i = 0;
+	int i;
 	int erase_delay_ms = 0;
 
 	if (IS_ERR_OR_NULL(vdd)) {
@@ -107,7 +98,7 @@ static int ss_poc_erase(struct samsung_display_driver_data *vdd)
 	LCD_INFO("ss_poc_erase !! \n");
 	ss_send_cmd(vdd, TX_POC_ERASE);
 
-	erase_delay_ms = vdd->poc_driver.erase_delay_ms / 100; /* Panel dtsi set */
+	erase_delay_ms = vdd->poc_driver.erase_delay_ms/100; /* Panel dtsi set */
 	LCD_INFO("erase_delay_ms (%d)\n", erase_delay_ms);
 
 	for (i = 0; i < erase_delay_ms; i++) {
@@ -124,7 +115,6 @@ static int ss_poc_erase(struct samsung_display_driver_data *vdd)
 cancel_poc:
 	atomic_set(&vdd->poc_driver.cancel, 0);
 #endif
-
 	return ret;
 }
 
@@ -165,8 +155,8 @@ void ss_poc_read_mca(struct samsung_display_driver_data *vdd)
 {
 	struct dsi_panel_cmd_set *mca_rx_cmds = NULL;
 
-	if (!vdd->poc_driver.is_support) {
-		LCD_ERR("Not Support POC Driver!\n");
+	if (!ss_is_ready_to_send_cmd(vdd)) {
+		LCD_ERR("Panel is not ready. Panel State(%d)\n", vdd->panel_state);
 		return;
 	}
 
@@ -250,11 +240,9 @@ static int ss_dsi_poc_ctrl(struct samsung_display_driver_data *vdd, u32 cmd, con
 			return -EINVAL;
 		}
 
-		vdd->poc_driver.er_try_cnt++;
 		ret = ss_poc_erase_sector(vdd, erase_start, erase_len);
 		if (unlikely(ret < 0)) {
 			LCD_ERR("failed to poc-erase-sector-seq\n");
-			vdd->poc_driver.er_fail_cnt++;
 			return ret;
 		}
 		break;
@@ -313,10 +301,7 @@ static int ss_dsi_poc_ctrl(struct samsung_display_driver_data *vdd, u32 cmd, con
 
 static long ss_dsi_poc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct miscdevice *c = file->private_data;
-	struct dsi_display *display = dev_get_drvdata(c->parent);
-	struct dsi_panel *panel = display->panel;
-	struct samsung_display_driver_data *vdd = panel->panel_private;
+	struct samsung_display_driver_data *vdd = samsung_get_vdd();
 	int ret = 0;
 
 	if (IS_ERR_OR_NULL(vdd)) {
@@ -372,10 +357,7 @@ static long ss_dsi_poc_ioctl(struct file *file, unsigned int cmd, unsigned long 
 static atomic_t poc_open_check = ATOMIC_INIT(1); /* OPEN/RELEASE CHECK */
 static int ss_dsi_poc_open(struct inode *inode, struct file *file)
 {
-	struct miscdevice *c = file->private_data;
-	struct dsi_display *display = dev_get_drvdata(c->parent);
-	struct dsi_panel *panel = display->panel;
-	struct samsung_display_driver_data *vdd = panel->panel_private;
+	struct samsung_display_driver_data *vdd = samsung_get_vdd();
 	int ret = 0;
 	int image_size = 0;
 
@@ -427,12 +409,23 @@ static int ss_dsi_poc_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
+
+int ss_is_poc_open(void)
+{
+	//LCD_INFO("poc_open_check %d\n", atomic_read(&poc_open_check));
+
+	// 0 : poc oepn
+	// 1 : poc release
+	if (unlikely(atomic_read(&poc_open_check))) {
+		return 0;
+	} else {
+		return 1;
+	}
+}
+
 static int ss_dsi_poc_release(struct inode *inode, struct file *file)
 {
-	struct miscdevice *c = file->private_data;
-	struct dsi_display *display = dev_get_drvdata(c->parent);
-	struct dsi_panel *panel = display->panel;
-	struct samsung_display_driver_data *vdd = panel->panel_private;
+	struct samsung_display_driver_data *vdd = samsung_get_vdd();
 	int ret = 0;
 
 	LCD_INFO("POC Release\n");
@@ -464,19 +457,21 @@ static int ss_dsi_poc_release(struct inode *inode, struct file *file)
 	vdd->poc_driver.rsize = 0;
 	atomic_set(&vdd->poc_driver.cancel, 0);
 
+
 	atomic_inc(&poc_open_check);
 	LCD_INFO("poc_open counter (%d)\n", poc_open_check.counter); /* 1 */
 
 	return ret;
 }
 
-static int _ss_dsi_poc_read(struct samsung_display_driver_data *vdd, char __user *buf, size_t count,
+static ssize_t ss_dsi_poc_read(struct file *file, char __user *buf, size_t count,
 			loff_t *ppos)
 {
-	int image_size = 0;
+	struct samsung_display_driver_data *vdd = samsung_get_vdd();
 	int ret = 0;
+	int image_size = 0;
 
-	LCD_DEBUG("ss_dsi_poc_read \n");
+	LCD_INFO("ss_dsi_poc_read \n");
 
 	if (IS_ERR_OR_NULL(vdd)) {
 		LCD_ERR("no vdd");
@@ -500,27 +495,21 @@ static int _ss_dsi_poc_read(struct samsung_display_driver_data *vdd, char __user
 
 	image_size = vdd->poc_driver.image_size;
 
-	if (unlikely(*ppos == image_size)) {
-		LCD_ERR("read is done.. pos (%d), size (%d)\n", (int)*ppos, image_size);
-		return -EINVAL;
-	}
-
 	if (unlikely(*ppos < 0 || *ppos >= image_size)) {
-		LCD_ERR("invalid read pos (%d), size (%d)\n", (int)*ppos, image_size);
+		LCD_ERR("invalid read pos (%d) - size (%d)\n", (int)*ppos, image_size);
 		return -EINVAL;
 	}
 
 	if (unlikely(*ppos + count > image_size)) {
-		LCD_ERR("invalid read size, pos %d, count %d, size %d\n",
+		LCD_ERR("invalid read size pos %d, count %d, size %d\n",
 				(int)*ppos, (int)count, image_size);
 		count = image_size - (int)*ppos;
 		LCD_ERR("resizing: pos %d, count %d, size %d",
 				(int)*ppos, (int)count, image_size);
 	}
 
-	vdd->poc_driver.rpos = *ppos + vdd->poc_driver.start_addr;
+	vdd->poc_driver.rpos = *ppos;
 	vdd->poc_driver.rsize = (u32)count;
-
 	ret = ss_dsi_poc_ctrl(vdd, POC_OP_READ, NULL);
 	if (ret) {
 		LCD_ERR("fail to read poc (%d)\n", ret);
@@ -530,33 +519,14 @@ static int _ss_dsi_poc_read(struct samsung_display_driver_data *vdd, char __user
 	return simple_read_from_buffer(buf, count, ppos, vdd->poc_driver.rbuf, image_size);
 }
 
-static ssize_t ss_dsi_poc_read(struct file *file, char __user *buf, size_t count,
-			loff_t *ppos)
-{
-	struct miscdevice *c = file->private_data;
-	struct dsi_display *display = dev_get_drvdata(c->parent);
-	struct dsi_panel *panel = display->panel;
-	struct samsung_display_driver_data *vdd = panel->panel_private;
-	int ret;
-
-	vdd->poc_driver.rd_try_cnt++;
-
-	ret = _ss_dsi_poc_read(vdd, buf, count, ppos);
-	if (ret < 0) {
-		LCD_ERR("fail to poc read..\n");
-		vdd->poc_driver.rd_fail_cnt++;
-	}
-
-	return ret;
-}
-
-static ssize_t _ss_dsi_poc_write(struct samsung_display_driver_data *vdd, const char __user *buf,
+static ssize_t ss_dsi_poc_write(struct file *file, const char __user *buf,
 			 size_t count, loff_t *ppos)
 {
-	int image_size = 0;
+	struct samsung_display_driver_data *vdd = samsung_get_vdd();
 	int ret = 0;
+	int image_size = 0;
 
-	LCD_DEBUG("ss_dsi_poc_write : count (%d), ppos(%d) \n", (int)count, (int)*ppos);
+	LCD_INFO("ss_dsi_poc_write : count (%d), ppos(%d) \n", (int)count, (int)*ppos);
 
 	if (IS_ERR_OR_NULL(vdd)) {
 		LCD_ERR("no vdd");
@@ -593,7 +563,7 @@ static ssize_t _ss_dsi_poc_write(struct samsung_display_driver_data *vdd, const 
 				(int)*ppos, (int)count, image_size);
 	}
 
-	vdd->poc_driver.wpos = *ppos + vdd->poc_driver.start_addr;
+	vdd->poc_driver.wpos = *ppos;
 	vdd->poc_driver.wsize = (u32)count;
 
 	ret = simple_write_to_buffer(vdd->poc_driver.wbuf, image_size, ppos, buf, count);
@@ -611,26 +581,6 @@ static ssize_t _ss_dsi_poc_write(struct samsung_display_driver_data *vdd, const 
 	return count;
 }
 
-
-static ssize_t ss_dsi_poc_write(struct file *file, const char __user *buf,
-			 size_t count, loff_t *ppos)
-{
-	struct miscdevice *c = file->private_data;
-	struct dsi_display *display = dev_get_drvdata(c->parent);
-	struct dsi_panel *panel = display->panel;
-	struct samsung_display_driver_data *vdd = panel->panel_private;
-	int ret = 0;
-
-	vdd->poc_driver.wr_try_cnt++;
-
-	ret = _ss_dsi_poc_write(vdd, buf, count, ppos);
-	if (ret < 0) {
-		LCD_ERR("fail to poc write..\n");
-		vdd->poc_driver.wr_fail_cnt++;
-	}
-
-	return ret;
-}
 static const struct file_operations poc_fops = {
 	.owner = THIS_MODULE,
 	.read = ss_dsi_poc_read,
@@ -641,6 +591,7 @@ static const struct file_operations poc_fops = {
 	.llseek = generic_file_llseek,
 };
 
+#ifdef CONFIG_DISPLAY_USE_INFO
 #define EPOCEFS_IMGIDX (100)
 enum {
 	EPOCEFS_NOENT = 1,		/* No such file or directory */
@@ -649,7 +600,6 @@ enum {
 	MAX_EPOCEFS,
 };
 
-#if 0
 static int poc_get_efs_s32(char *filename, int *value)
 {
 	mm_segment_t old_fs;
@@ -701,72 +651,6 @@ exit:
 
 	return ret;
 }
-#else
-static int poc_get_efs_count(char *filename, int *value)
-{
-	mm_segment_t old_fs;
-	struct file *filp = NULL;
-	int fsize = 0, nread, rc, ret = 0;
-	int count;
-	u8 buf[128];
-
-	if (!filename || !value) {
-		pr_err("%s invalid parameter\n", __func__);
-		return -EINVAL;
-	}
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-
-	filp = filp_open(filename, O_RDONLY, 0440);
-	if (IS_ERR(filp)) {
-		ret = PTR_ERR(filp);
-		if (ret == -ENOENT)
-			pr_err("%s file(%s) not exist\n", __func__, filename);
-		else
-			pr_info("%s file(%s) open error(ret %d)\n",
-					__func__, filename, ret);
-		set_fs(old_fs);
-		return -EPOCEFS_NOENT;
-	}
-
-	if (filp->f_path.dentry && filp->f_path.dentry->d_inode)
-		fsize = filp->f_path.dentry->d_inode->i_size;
-
-	if (fsize == 0 || fsize > ARRAY_SIZE(buf)) {
-		pr_err("%s invalid file(%s) size %d\n",
-				__func__, filename, fsize);
-		ret = -EPOCEFS_EMPTY;
-		goto exit;
-	}
-
-	memset(buf, 0, sizeof(buf));
-	nread = vfs_read(filp, (char __user *)buf, fsize, &filp->f_pos);
-	if (nread != fsize) {
-		pr_err("%s failed to read (ret %d)\n", __func__, nread);
-		ret = -EPOCEFS_READ;
-		goto exit;
-	}
-
-	rc = sscanf(buf, "%d", &count);
-	if (rc != 1) {
-		pr_err("%s failed to sscanf %d\n", __func__, rc);
-		ret = -EINVAL;
-		goto exit;
-	}
-
-	pr_info("%s %s(size %d) : %d\n",
-			__func__, filename, fsize, count);
-
-	*value = count;
-
-exit:
-	filp_close(filp, current->files);
-	set_fs(old_fs);
-
-	return ret;
-}
-#endif
 
 static int poc_get_efs_image_index_org(char *filename, int *value)
 {
@@ -809,13 +693,12 @@ static int poc_get_efs_image_index_org(char *filename, int *value)
 
 	memset(buf, 0, sizeof(buf));
 	nread = vfs_read(filp, (char __user *)buf, fsize, &filp->f_pos);
-	if ((nread != fsize) || (nread < 0)) {
+	buf[nread] = '\0';
+	if (nread != fsize) {
 		pr_err("%s failed to read (ret %d)\n", __func__, nread);
 		ret = -EPOCEFS_READ;
 		goto exit;
 	}
-
-	buf[nread] = '\0';
 
 	rc = sscanf(buf, "%c %d %d", &binary, &image_index, &chksum);
 	if (rc != 3) {
@@ -876,13 +759,12 @@ static int poc_get_efs_image_index(char *filename, int *value)
 
 	memset(buf, 0, sizeof(buf));
 	nread = vfs_read(filp, (char __user *)buf, fsize, &filp->f_pos);
-	if ((nread != fsize) || (nread < 0)) {
+	buf[nread] = '\0';
+	if (nread != fsize) {
 		pr_err("%s failed to read (ret %d)\n", __func__, nread);
 		ret = -EPOCEFS_READ;
 		goto exit;
 	}
-
-	buf[nread] = '\0';
 
 	rc = sscanf(buf, "%d,%d", &image_index, &seek);
 	if (rc != 2) {
@@ -903,8 +785,14 @@ exit:
 	return ret;
 }
 
-#define POC_TOTAL_TRY_COUNT_FILE_PATH	("/efs/afc/apply_count")
-#define POC_TOTAL_FAIL_COUNT_FILE_PATH	("/efs/afc/fail_count")
+#ifdef CONFIG_SEC_FACTORY
+#define POC_TOTAL_TRY_COUNT_FILE_PATH	("/efs/FactoryApp/poc_totaltrycount")
+#define POC_TOTAL_FAIL_COUNT_FILE_PATH	("/efs/FactoryApp/poc_totalfailcount")
+#else
+#define POC_TOTAL_TRY_COUNT_FILE_PATH	("/efs/etc/poc/totaltrycount")
+#define POC_TOTAL_FAIL_COUNT_FILE_PATH	("/efs/etc/poc/totalfailcount")
+#endif
+
 #define POC_INFO_FILE_PATH	("/efs/FactoryApp/poc_info")
 #define POC_USER_FILE_PATH	("/efs/FactoryApp/poc_user")
 
@@ -928,18 +816,13 @@ static int poc_dpui_notifier_callback(struct notifier_block *self,
 		return 0;
 	}
 
-	if (!poc->is_support) {
-		LCD_ERR("Not Support POC Driver!\n");
-		return -ENODEV;
-	}
-
-	ret = poc_get_efs_count(POC_TOTAL_TRY_COUNT_FILE_PATH, &total_try_cnt);
+	ret = poc_get_efs_s32(POC_TOTAL_TRY_COUNT_FILE_PATH, &total_try_cnt);
 	if (ret < 0)
 		total_try_cnt = (ret > -MAX_EPOCEFS) ? ret : -1;
 	size = snprintf(tbuf, MAX_DPUI_VAL_LEN, "%d", total_try_cnt);
 	set_dpui_field(DPUI_KEY_PNPOCT, tbuf, size);
 
-	ret = poc_get_efs_count(POC_TOTAL_FAIL_COUNT_FILE_PATH, &total_fail_cnt);
+	ret = poc_get_efs_s32(POC_TOTAL_FAIL_COUNT_FILE_PATH, &total_fail_cnt);
 	if (ret < 0)
 		total_fail_cnt = (ret > -MAX_EPOCEFS) ? ret : -1;
 	size = snprintf(tbuf, MAX_DPUI_VAL_LEN, "%d", total_fail_cnt);
@@ -957,26 +840,8 @@ static int poc_dpui_notifier_callback(struct notifier_block *self,
 	size = snprintf(tbuf, MAX_DPUI_VAL_LEN, "%d", poci);
 	set_dpui_field(DPUI_KEY_PNPOCI, tbuf, size);
 
-	inc_dpui_u32_field(DPUI_KEY_PNPOC_ER_TRY, poc->er_try_cnt);
-	inc_dpui_u32_field(DPUI_KEY_PNPOC_ER_FAIL, poc->er_fail_cnt);
-	inc_dpui_u32_field(DPUI_KEY_PNPOC_WR_TRY, poc->wr_try_cnt);
-	inc_dpui_u32_field(DPUI_KEY_PNPOC_WR_FAIL, poc->wr_fail_cnt);
-	inc_dpui_u32_field(DPUI_KEY_PNPOC_RD_TRY, poc->rd_try_cnt);
-	inc_dpui_u32_field(DPUI_KEY_PNPOC_RD_FAIL, poc->rd_fail_cnt);
-
 	LCD_INFO("poc dpui: try=%d, fail=%d, id=%d, %d\n",
 			total_try_cnt, total_fail_cnt, poci, poci_org);
-	LCD_INFO("poc dpui: er (%d/%d), wr (%d/%d), rd (%d/%d)\n",
-			poc->er_try_cnt, poc->er_fail_cnt,
-			poc->wr_try_cnt, poc->wr_fail_cnt,
-			poc->rd_try_cnt, poc->rd_fail_cnt);
-
-	poc->er_try_cnt = 0;
-	poc->er_fail_cnt = 0;
-	poc->wr_try_cnt = 0;
-	poc->wr_fail_cnt = 0;
-	poc->rd_try_cnt = 0;
-	poc->rd_fail_cnt = 0;
 
 	return 0;
 }
@@ -989,6 +854,7 @@ static int ss_dsi_poc_register_dpui(struct POC *poc)
 
 	return dpui_logging_register(&poc->dpui_notif, DPUI_TYPE_PANEL);
 }
+#endif	/* CONFIG_DISPLAY_USE_INFO */
 
 #define POC_DEV_NAME_SIZE 10
 int ss_dsi_poc_init(struct samsung_display_driver_data *vdd)
@@ -1002,11 +868,6 @@ int ss_dsi_poc_init(struct samsung_display_driver_data *vdd)
 
 	if (IS_ERR_OR_NULL(vdd)) {
 		LCD_ERR("no vdd");
-		return -ENODEV;
-	}
-
-	if (!vdd->poc_driver.is_support) {
-		LCD_ERR("Not Support POC Driver!\n");
 		return -ENODEV;
 	}
 
@@ -1030,14 +891,6 @@ int ss_dsi_poc_init(struct samsung_display_driver_data *vdd)
 	vdd->poc_driver.rbuf = NULL;
 	atomic_set(&vdd->poc_driver.cancel, 0);
 
-	/* Drvier level big data for POC operation */
-	vdd->poc_driver.er_try_cnt = 0;
-	vdd->poc_driver.er_fail_cnt = 0;
-	vdd->poc_driver.wr_try_cnt = 0;
-	vdd->poc_driver.wr_fail_cnt = 0;
-	vdd->poc_driver.rd_try_cnt = 0;
-	vdd->poc_driver.rd_fail_cnt = 0;
-
 	vdd->panel_func.samsung_poc_ctrl = ss_dsi_poc_ctrl;
 
 	ret = misc_register(&vdd->poc_driver.dev);
@@ -1046,7 +899,9 @@ int ss_dsi_poc_init(struct samsung_display_driver_data *vdd)
 		return ret;
 	}
 
+#ifdef CONFIG_DISPLAY_USE_INFO
 	ss_dsi_poc_register_dpui(&vdd->poc_driver);
+#endif
 
 	LCD_INFO("--\n");
 	return ret;

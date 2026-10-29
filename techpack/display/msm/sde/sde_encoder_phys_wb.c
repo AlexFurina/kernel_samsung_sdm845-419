@@ -1547,8 +1547,6 @@ static void sde_encoder_phys_wb_enable(struct sde_encoder_phys *phys_enc)
 	dev = wb_enc->base.parent->dev;
 
 	SDE_INFO("WB Enable, boost up sde core clk\n");
-	flag_boost_mdpclk_cwb = true;
-	ss_set_max_sde_core_clk(dev);
 
 	/* find associated writeback connector */
 	connector = phys_enc->connector;
@@ -1653,10 +1651,8 @@ exit:
 
 
 	SDE_INFO("WB Disable\n");
-	flag_boost_mdpclk_cwb = false;
 	if (wb_enc->base.parent->dev) {
 		SDE_INFO("restore normal sde core clk\n");
-		ss_set_normal_sde_core_clk(wb_enc->base.parent->dev);
 	}
 }
 

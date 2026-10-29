@@ -62,11 +62,9 @@
 
 #if defined(CONFIG_DISPLAY_SAMSUNG)
 #include <linux/sec_debug.h>
+#include "ss_dsi_panel_common.h"
 #endif
 
-#if defined(CONFIG_DISPLAY_SAMSUNG) // case 04436106
-#include "ss_dsi_panel_debug.h"
-#endif
 
 /* defines for secure channel call */
 #define MEM_PROTECT_SD_CTRL_SWITCH 0x18
@@ -178,19 +176,6 @@ void reg_log_dump(const char *func_name, int line_num)
 		g_init_done = true;
 	}
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-	{
-		/* PBA booting skip */
-		extern int ss_panel_attached(int ndx);
-
-		if (!(ss_panel_attached(0) || ss_panel_attached(1)))
-			return;
-	}
-#if defined(CONFIG_PANEL_S6TUUM1_AMSA24VU01_WQXGA)
-	/* for GTS7XL hwid 02 2800X1752 panel */
-	return;
-#endif
-#endif
 
 	for (i = 0 ; i < MAX_REG_COUNT; i++) {
 		if (reg_info[i].reg_off)
@@ -294,25 +279,16 @@ static int sde_kms_enable_vblank(struct msm_kms *kms, struct drm_crtc *crtc)
 	ret = sde_crtc_vblank(crtc, true);
 	SDE_ATRACE_END("sde_kms_enable_vblank");
 
-#if defined(CONFIG_DISPLAY_SAMSUNG) // case 04436106
-	SS_XLOG_VSYNC(ret);
-#endif
 	return ret;
 }
 
 static void sde_kms_disable_vblank(struct msm_kms *kms, struct drm_crtc *crtc)
 {
-#if defined(CONFIG_DISPLAY_SAMSUNG) // case 04436106
-	int ret = 0;
-#endif
 
 	SDE_ATRACE_BEGIN("sde_kms_disable_vblank");
-	ret = sde_crtc_vblank(crtc, false);
+	sde_crtc_vblank(crtc, false);
 	SDE_ATRACE_END("sde_kms_disable_vblank");
 
-#if defined(CONFIG_DISPLAY_SAMSUNG) // case 04436106
-	SS_XLOG_VSYNC(ret);
-#endif
 }
 
 static void sde_kms_wait_for_frame_transfer_complete(struct msm_kms *kms,
@@ -858,14 +834,6 @@ static int _sde_kms_release_splash_buffer(struct sde_kms *sde_kms,
 
 	/* leave ramdump memory only if base address matches */
 	if (ramdump_base == mem_addr &&
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-			/* case 1) upload mode: release splash memory except disp_rdump_memory
-			 *         which is used for framebuffer in upload mode bootloader
-			 * case 2) None-upload mode: release whole splash memory
-			 *         which is used for framebuffer in normal booitng mode bootloader
-			 */
-			sec_debug_is_enabled() &&
-#endif
 			ramdump_buffer_size <= splash_buffer_size) {
 		mem_addr +=  ramdump_buffer_size;
 		splash_buffer_size -= ramdump_buffer_size;
@@ -873,6 +841,12 @@ static int _sde_kms_release_splash_buffer(struct sde_kms *sde_kms,
 
 	if (!ramdump_base)
 		_sde_clear_boot_config(boot_cfg);
+#if defined(CONFIG_DISPLAY_SAMSUNG) && defined(CONFIG_SEC_DEBUG)
+	if (sec_debug_is_enabled()) {
+		pr_info("skip to free splash memory\n");
+		return 0;
+	}
+#endif
 
 	pfn_start = mem_addr >> PAGE_SHIFT;
 	pfn_end = (mem_addr + splash_buffer_size) >> PAGE_SHIFT;
@@ -886,10 +860,6 @@ static int _sde_kms_release_splash_buffer(struct sde_kms *sde_kms,
 	for (pfn_idx = pfn_start; pfn_idx < pfn_end; pfn_idx++)
 		free_reserved_page(pfn_to_page(pfn_idx));
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-	SDE_INFO("release splash buffer: addr: %x, size: %x, sec_debug: %d\n",
-			mem_addr, splash_buffer_size, sec_debug_is_enabled());
-#endif
 
 	return ret;
 
@@ -1517,15 +1487,9 @@ static void _sde_kms_release_displays(struct sde_kms *sde_kms)
 	sde_kms->wb_displays = NULL;
 	sde_kms->wb_display_count = 0;
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-	sde_kms->dsi_display_count = 0;
-	kfree(sde_kms->dsi_displays);
-	sde_kms->dsi_displays = NULL;
-#else
 	kfree(sde_kms->dsi_displays);
 	sde_kms->dsi_displays = NULL;
 	sde_kms->dsi_display_count = 0;
-#endif
 }
 
 /**
@@ -1964,10 +1928,6 @@ void sde_kms_timeline_status(struct drm_device *dev)
 	mutex_unlock(&dev->mode_config.mutex);
 }
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-int sde_core_perf_sysfs_init(struct sde_kms *sde_kms);
-int sde_core_perf_sysfs_deinit(struct sde_kms *sde_kms);
-#endif
 
 static int sde_kms_postinit(struct msm_kms *kms)
 {
@@ -1987,11 +1947,6 @@ static int sde_kms_postinit(struct msm_kms *kms)
 	if (rc)
 		SDE_ERROR("sde_debugfs init failed: %d\n", rc);
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-	rc = sde_core_perf_sysfs_init(sde_kms);
-	if (rc)
-		SDE_ERROR("sde_core_sysfs init failed: %d\n", rc);
-#endif
 
 	drm_for_each_crtc(crtc, dev)
 		sde_crtc_post_init(dev, crtc);
@@ -2044,9 +1999,6 @@ static void _sde_kms_hw_destroy(struct sde_kms *sde_kms,
 	/* safe to call these more than once during shutdown */
 	_sde_debugfs_destroy(sde_kms);
 	_sde_kms_mmu_destroy(sde_kms);
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-	sde_core_perf_sysfs_deinit(sde_kms);
-#endif
 
 	if (sde_kms->catalog) {
 		for (i = 0; i < sde_kms->catalog->vbif_count; i++) {
@@ -2378,9 +2330,6 @@ static int _sde_kms_helper_reset_custom_properties(struct sde_kms *sde_kms,
 	return ret;
 }
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-#include "./dsi/dsi_display.h"
-#endif
 static void sde_kms_lastclose(struct msm_kms *kms,
 		struct drm_modeset_acquire_ctx *ctx)
 {
@@ -2424,28 +2373,6 @@ static void sde_kms_lastclose(struct msm_kms *kms,
 	drm_atomic_state_put(state);
 
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-	/*
-		There is reverse current on BLIC after panel power off.
-		This project use AOT mode(always on touch). So suspend status sustain panel power on.
-		So, only consider set power off & set restart case
-	*/
-	{
-		struct dsi_display *display;
-		int i;
-
-		for (i = 0; i < sde_kms->dsi_display_count; ++i) {
-			display = (struct dsi_display *)sde_kms->dsi_displays[i];
-			if (of_node_name_eq(display->panel_node, "ss_dsi_panel_NT36523_PPA957DB1_WQXGA")) {
-				SDE_ERROR("wait 3s start\n");
-				msleep(3000);
-				SDE_ERROR("wait 3s end\n");
-				break;
-			}
-		}
-
-	}
-#endif
 }
 
 static int sde_kms_check_secure_transition(struct msm_kms *kms,
@@ -2460,6 +2387,9 @@ static int sde_kms_check_secure_transition(struct msm_kms *kms,
 	bool sec_session = false, global_sec_session = false;
 	uint32_t fb_ns = 0, fb_sec = 0, fb_sec_dir = 0;
 	int i;
+#if defined(CONFIG_DISPLAY_SAMSUNG)
+	struct samsung_display_driver_data *vdd = samsung_get_vdd();
+#endif
 
 	if (!kms || !state) {
 		return -EINVAL;
@@ -2498,6 +2428,24 @@ static int sde_kms_check_secure_transition(struct msm_kms *kms,
 			global_crtc = crtc;
 		}
 	}
+
+#if defined(CONFIG_DISPLAY_SAMSUNG)
+	if (vdd->support_hall_ic) {
+		if (global_sec_session || sec_session) {
+			if (!vdd->folder_com->secure_display_mode) {
+				reinit_completion(&vdd->folder_com->secure_display_done);
+				SDE_DEBUG("enter secure display\n");
+				vdd->folder_com->secure_display_mode = true;
+			}
+		} else if (!global_sec_session && !sec_session) {
+			if (vdd->folder_com->secure_display_mode) {
+				vdd->folder_com->secure_display_mode = false;
+				SDE_DEBUG("exit secure display\n");
+				complete(&vdd->folder_com->secure_display_done);
+			}
+		}
+	}
+#endif
 
 	if (!global_sec_session && !sec_session)
 		return 0;
@@ -3261,7 +3209,7 @@ end:
 
 #if defined(CONFIG_DISPLAY_SAMSUNG)
 extern int ss_dsi_panel_event_handler(
-		int display_ndx, enum mdss_intf_events event, void *arg);
+		struct drm_device *dev, enum mdss_intf_events event, void *arg);
 #endif
 
 static const struct msm_kms_funcs kms_funcs = {
@@ -3295,10 +3243,10 @@ static const struct msm_kms_funcs kms_funcs = {
 	.postopen = _sde_kms_post_open,
 	.check_for_splash = sde_kms_check_for_splash,
 	.get_mixer_count = sde_kms_get_mixer_count,
-
 #if defined(CONFIG_DISPLAY_SAMSUNG)
 	.ss_callback	= ss_dsi_panel_event_handler,
 #endif
+
 };
 
 /* the caller api needs to turn on clock before calling it */

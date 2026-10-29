@@ -560,8 +560,8 @@ static int _sde_connector_update_power_locked(struct sde_connector *c_conn)
 	if (mode != c_conn->last_panel_power_mode && c_conn->ops.set_power) {
 #else /* SS Modify */
 	if (mode != c_conn->last_panel_power_mode && c_conn->ops.set_power
-		&& !(mode == SDE_MODE_DPMS_OFF && c_conn->last_panel_power_mode == SDE_MODE_DPMS_ON)
-		&& !(mode == SDE_MODE_DPMS_ON && c_conn->last_panel_power_mode == SDE_MODE_DPMS_OFF)) {
+	&& !(mode == SDE_MODE_DPMS_OFF && c_conn->last_panel_power_mode == SDE_MODE_DPMS_ON)
+	&& !(mode == SDE_MODE_DPMS_ON && c_conn->last_panel_power_mode == SDE_MODE_DPMS_OFF)) {
 #endif
 		display = c_conn->display;
 		set_power = c_conn->ops.set_power;
@@ -821,23 +821,22 @@ int sde_connector_pre_kickoff(struct drm_connector *connector)
 
 	params.rois = &c_state->rois;
 	params.hdr_meta = &c_state->hdr_meta;
+#if defined(CONFIG_DISPLAY_SAMSUNG)
+	/* SAMSUNG_FINGERPRINT */
+	display = c_conn->display;
+	vdd = display->panel->panel_private;
+	finger_mask_state = sde_connector_get_property(c_conn->base.state,
+			CONNECTOR_PROP_FINGERPRINT_MASK);
+	vdd->finger_mask_updated = false;
+	if (finger_mask_state != vdd->finger_mask) {
+		SDE_ERROR("[FINGER MASK]updated finger mask mode %d\n", finger_mask_state);
+		vdd->finger_mask_updated = true;
+		vdd->finger_mask = finger_mask_state;
+	}
+#endif
 
 	SDE_EVT32_VERBOSE(connector->base.id);
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-	if (c_conn->connector_type == DRM_MODE_CONNECTOR_DSI) {
-		/* SAMSUNG_FINGERPRINT */
-		vdd = display->panel->panel_private;
-		finger_mask_state = sde_connector_get_property(c_conn->base.state,
-				CONNECTOR_PROP_FINGERPRINT_MASK);
-		vdd->finger_mask_updated = false;
-		if (finger_mask_state != vdd->finger_mask) {
-			SDE_ERROR("[FINGER MASK]updated finger mask mode %d\n", finger_mask_state);
-			vdd->finger_mask_updated = true;
-			vdd->finger_mask = finger_mask_state;
-		}
-	}
-#endif
 
 	rc = c_conn->ops.pre_kickoff(connector, c_conn->display, &params);
 
@@ -924,9 +923,6 @@ void sde_connector_helper_bridge_enable(struct drm_connector *connector)
 {
 	struct sde_connector *c_conn = NULL;
 	struct dsi_display *display;
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-	struct samsung_display_driver_data *vdd;
-#endif
 
 
 	if (!connector)
@@ -951,17 +947,7 @@ void sde_connector_helper_bridge_enable(struct drm_connector *connector)
 		c_conn->bl_device->props.power = FB_BLANK_UNBLANK;
 		c_conn->bl_device->props.state &= ~BL_CORE_FBBLANK;
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-		vdd = display->panel->panel_private;
-
-		if (vdd->vrr.support_vrr_based_bl &&
-				(vdd->vrr.running_vrr_mdp || vdd->vrr.running_vrr))
-			LCD_INFO("skip brightness update during VRR\n");
-		else
-			backlight_update_status(c_conn->bl_device);
-#else
 		backlight_update_status(c_conn->bl_device);
-#endif
 	}
 	c_conn->panel_dead = false;
 }
@@ -2239,8 +2225,7 @@ static void _sde_connector_report_panel_dead(struct sde_connector *conn,
 
 #if defined(CONFIG_DISPLAY_SAMSUNG)
 	{
-		struct dsi_display *display = conn->display;
-		struct samsung_display_driver_data *vdd = display->panel->panel_private;
+		struct samsung_display_driver_data *vdd = samsung_get_vdd();
 		vdd->panel_dead = true;
 	}
 #endif
@@ -2263,18 +2248,18 @@ int sde_connector_esd_status(struct drm_connector *conn)
 
 	/* protect this call with ESD status check call */
 	mutex_lock(&sde_conn->lock);
-	if (atomic_read(&(display->panel->esd_recovery_pending))) {
-		SDE_ERROR("ESD recovery already pending\n");
-		mutex_unlock(&sde_conn->lock);
-		return -ETIMEDOUT;
-	}
+        if (atomic_read(&(display->panel->esd_recovery_pending))) {
+                SDE_ERROR("ESD recovery already pending\n");
+                mutex_unlock(&sde_conn->lock);
+                return -ETIMEDOUT;
+        }
 
 #if defined(CONFIG_DISPLAY_SAMSUNG)
-	ret = sde_conn->ops.check_status(&sde_conn->base, sde_conn->display,
-								false);
+        ret = sde_conn->ops.check_status(&sde_conn->base,
+                                         sde_conn->display, false);
 #else
-	ret = sde_conn->ops.check_status(&sde_conn->base,
-					 sde_conn->display, true);
+        ret = sde_conn->ops.check_status(&sde_conn->base,
+                                         sde_conn->display, true);
 #endif
 	mutex_unlock(&sde_conn->lock);
 
@@ -2612,13 +2597,13 @@ static int _sde_connector_install_properties(struct drm_device *dev,
 	msm_property_install_range(&c_conn->property_info, "bl_scale",
 		0x0, 0, MAX_BL_SCALE_LEVEL, MAX_BL_SCALE_LEVEL,
 		CONNECTOR_PROP_BL_SCALE);
-
 #if defined(CONFIG_DISPLAY_SAMSUNG)
-		/* SAMSUNG_FINGERPRINT */
+	/* SAMSUNG_FINGERPRINT */
 	msm_property_install_range(&c_conn->property_info, "fingerprint_mask",
 		0x0, 0, 100, 0,
 		CONNECTOR_PROP_FINGERPRINT_MASK);
 #endif
+
 
 	msm_property_install_range(&c_conn->property_info, "sv_bl_scale",
 		0x0, 0, MAX_SV_BL_SCALE_LEVEL, MAX_SV_BL_SCALE_LEVEL,

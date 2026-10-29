@@ -11,9 +11,6 @@
 #include "sde_kms.h"
 #include "sde_formats.h"
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-#include "ss_dsi_panel_common.h"
-#endif
 
 #define SDE_UBWC_META_MACRO_W_H		16
 #define SDE_UBWC_META_BLOCK_SIZE	256
@@ -1025,13 +1022,6 @@ static int _sde_format_populate_addrs_ubwc(
 	}
 done:
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-	if (sec_debug_is_enabled()) {
-		ss_image_logging_update(base_addr,
-			layout->width, layout->height,
-			layout->format->base.pixel_format);
-	}
-#endif
 
 	return 0;
 }

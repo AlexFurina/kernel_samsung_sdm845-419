@@ -25,12 +25,15 @@
 
 #if defined(CONFIG_DISPLAY_SAMSUNG)
 #include "ss_dsi_panel_common.h"
-#include "sde_trace.h"
 #endif
 
 #define DSI_CTRL_DEFAULT_LABEL "MDSS DSI CTRL"
 
+#if defined(CONFIG_DISPLAY_SAMSUNG)
+#define DSI_CTRL_TX_TO_MS     1000
+#else
 #define DSI_CTRL_TX_TO_MS     200
+#endif
 
 #define TO_ON_OFF(x) ((x) ? "ON" : "OFF")
 
@@ -351,23 +354,6 @@ static void dsi_ctrl_dma_cmd_wait_for_done(struct work_struct *work)
 			DSI_CTRL_WARN(dsi_ctrl,
 					"dma_tx done but irq not triggered\n");
 		} else {
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-			struct samsung_display_driver_data *vdd = ss_get_vdd(dsi_ctrl->cell_index);
-
-			/* check physical display connection */
-			if (gpio_is_valid(vdd->ub_con_det.gpio)) {
-				pr_err("[SDE] ub_con_det.gpio(%d) level=%d\n",
-						vdd->ub_con_det.gpio,
-						gpio_get_value(vdd->ub_con_det.gpio));
-			}
-
-#if 1 // case 03745287
-			if (!dsi_ctrl->esd_check_underway && !vdd->panel_dead) {
-				SDE_DBG_DUMP("all", "dbg_bus", "vbif_dbg_bus", "panic");
-			}
-#endif
-
-#endif
 			DSI_CTRL_ERR(dsi_ctrl,
 					"Command transfer failed\n");
 		}
@@ -955,6 +941,10 @@ static int dsi_ctrl_update_link_freqs(struct dsi_ctrl *dsi_ctrl,
 	/* Get bits per pxl in destination format */
 	bpp = dsi_ctrl_pixel_format_to_bpp(host_cfg->dst_format);
 	frame_time_us = mult_frac(1000, 1000, (timing->refresh_rate));
+#if defined(CONFIG_DISPLAY_SAMSUNG)
+	/* Change MIPI Clock with dsi timing(porch,fps) change */
+	/* ss_change_dyn_mipi_clk_timing(samsung_get_vdd()); */
+#endif
 
 	if (host_cfg->data_lanes & DSI_DATA_LANE_0)
 		num_of_lanes++;
@@ -1307,18 +1297,10 @@ static void dsi_kickoff_msg_tx(struct dsi_ctrl *dsi_ctrl,
 							cmd_mem,
 							hw_flags);
 			} else {
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-				if (msg->tx_buf[0] == 0x2a || msg->tx_buf[0] == 0x2b)
-					SDE_ATRACE_BEGIN("dsi_message_tx_flush");
-#endif
 				dsi_hw_ops.kickoff_command(
 						&dsi_ctrl->hw,
 						cmd_mem,
 						hw_flags);
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-				if (msg->tx_buf[0] == 0x2a || msg->tx_buf[0] == 0x2b)
-					SDE_ATRACE_END("dsi_message_tx_flush");
-#endif
 			}
 		} else if (flags & DSI_CTRL_CMD_FIFO_STORE) {
 			dsi_hw_ops.kickoff_fifo_command(&dsi_ctrl->hw,
@@ -1356,10 +1338,6 @@ static void dsi_kickoff_msg_tx(struct dsi_ctrl *dsi_ctrl,
 							      hw_flags);
 		}
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-		if (msg->tx_buf[0] == 0x2a || msg->tx_buf[0] == 0x2b)
-			SDE_ATRACE_BEGIN("dsi_message_tx_wait");
-#endif
 		if (flags & DSI_CTRL_CMD_ASYNC_WAIT) {
 			dsi_ctrl->dma_wait_queued = true;
 			queue_work(dsi_ctrl->dma_cmd_workq,
@@ -1369,12 +1347,6 @@ static void dsi_kickoff_msg_tx(struct dsi_ctrl *dsi_ctrl,
 			dsi_ctrl_dma_cmd_wait_for_done(&dsi_ctrl->dma_cmd_wait);
 		}
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-		// TODO: this should be called in dsi_ctrl_dma_cmd_wait_for_done()..
-		// but there is no msg struct... fix this later... (CSP3)
-		if (msg->tx_buf[0] == 0x2a || msg->tx_buf[0] == 0x2b)
-			SDE_ATRACE_END("dsi_message_tx_wait");
-#endif
 
 		dsi_ctrl_mask_overflow(dsi_ctrl, false);
 
@@ -1417,11 +1389,21 @@ static void dsi_ctrl_validate_msg_flags(struct dsi_ctrl *dsi_ctrl,
 }
 
 #if defined(CONFIG_DISPLAY_SAMSUNG)
-static void print_cmd_desc(const struct mipi_dsi_msg *msg, int display_ndx)
+static void print_cmd_desc(const struct mipi_dsi_msg *msg)
 {
+	struct samsung_display_driver_data *vdd = samsung_get_vdd();
 	char buf[1024];
 	int len = 0;
 	size_t i;
+
+	if (IS_ERR_OR_NULL(vdd))
+		return;
+
+	if (!vdd->debug_data->print_cmds) {
+		LCD_DEBUG("print_cmds is disabled(%s)",
+			vdd->debug_data->print_cmds ? "enabled" : "disabled");
+		return;
+	}
 
 	/* Packet Info */
 	len += snprintf(buf, sizeof(buf) - len,  "%02x ", msg->type);
@@ -1443,7 +1425,7 @@ static void print_cmd_desc(const struct mipi_dsi_msg *msg, int display_ndx)
 			break;
 	}
 
-	LCD_INFO("[DISPLAY_%d] (%02d) %s\n", display_ndx, (unsigned int)msg->tx_len, buf);
+	LCD_INFO("(%02d) %s\n", (unsigned int)msg->tx_len, buf);
 }
 #endif
 
@@ -1461,9 +1443,7 @@ static int dsi_message_tx(struct dsi_ctrl *dsi_ctrl,
 	u8 *cmdbuf;
 
 #if defined(CONFIG_DISPLAY_SAMSUNG)
-	struct samsung_display_driver_data *vdd = ss_get_vdd(dsi_ctrl->cell_index);
-	if (vdd->debug_data && vdd->debug_data->print_cmds)
-		print_cmd_desc(msg, vdd->ndx);
+	print_cmd_desc(msg);
 #endif
 
 	/* Select the tx mode to transfer the command */
@@ -2702,11 +2682,11 @@ static void dsi_ctrl_handle_error_status(struct dsi_ctrl *dsi_ctrl,
 	if (dsi_ctrl->hw.ops.error_intr_ctrl)
 		dsi_ctrl->hw.ops.error_intr_ctrl(&dsi_ctrl->hw, true);
 
+
 #if defined(CONFIG_DISPLAY_SAMSUNG)
 	inc_dpui_u32_field_nolock(DPUI_KEY_QCT_DSIE, 1);
-	ss_get_vdd(dsi_ctrl->cell_index)->dsi_errors = error;
+	samsung_get_vdd()->dsi_errors = error;
 #endif
-
 }
 
 /**
