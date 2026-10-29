@@ -69,6 +69,23 @@ enum sde_dbg_dump_context {
 #define SDE_EVTLOG_BUF_MAX 512
 #define SDE_EVTLOG_BUF_ALIGN 32
 
+#ifdef CONFIG_DISPLAY_SAMSUNG
+/**
+ * To save more SDE_EVTLOG
+ */
+#undef SDE_EVTLOG_DEFAULT_ENABLE
+#define SDE_EVTLOG_DEFAULT_ENABLE (SDE_EVTLOG_CRITICAL | SDE_EVTLOG_IRQ | SDE_EVTLOG_VERBOSE)
+
+/**
+ * To pulling out 256 * 4 eventlog line
+ */
+#undef SDE_EVTLOG_PRINT_ENTRY
+#define SDE_EVTLOG_PRINT_ENTRY	(256 * 4)
+
+#undef SDE_EVTLOG_ENTRY
+#define SDE_EVTLOG_ENTRY	(SDE_EVTLOG_PRINT_ENTRY * 2)
+#endif
+
 struct sde_dbg_power_ctrl {
 	void *handle;
 	void *client;
@@ -352,11 +369,6 @@ void sde_evtlog_set_filter(struct sde_dbg_evtlog *evtlog, char *filter);
 int sde_evtlog_get_filter(struct sde_dbg_evtlog *evtlog, int index,
 		char *buf, size_t bufsz);
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-void ss_sde_dbg_debugfs_open(void);
-ssize_t ss_sde_evtlog_dump_read(struct file *file, char __user *buff,
-		size_t count, loff_t *ppos);
-#endif
 
 #ifndef CONFIG_DRM_SDE_RSC
 static inline void sde_rsc_debug_dump(u32 mux_sel)

@@ -26,6 +26,8 @@
 #ifndef __SS_PANEL_NOTIFY_H__
 #define __SS_PANEL_NOTIFY_H__
 
+#include <linux/notifier.h>
+
 enum panel_notifier_event_t {
 	PANEL_EVENT_BL_CHANGED,
 	PANEL_EVENT_VRR_CHANGED,
@@ -73,5 +75,7 @@ struct panel_state_data {
 extern int ss_panel_notifier_register(struct notifier_block *nb);
 extern int ss_panel_notifier_unregister(struct notifier_block *nb);
 extern int ss_panel_notifier_call_chain(unsigned long val, void *v);
+
+extern void ss_notify_panel_state(enum panel_state state);
 
 #endif /*__PANEL_NOTIFY_H__*/

@@ -200,11 +200,11 @@ enum msm_mdp_conn_property {
 	CONNECTOR_PROP_FB_TRANSLATION_MODE,
 	CONNECTOR_PROP_QSYNC_MODE,
 	CONNECTOR_PROP_CMD_FRAME_TRIGGER_MODE,
+
 #if defined(CONFIG_DISPLAY_SAMSUNG)
 	/* SAMSUNG_FINGERPRINT */
 	CONNECTOR_PROP_FINGERPRINT_MASK,
 #endif
-
 	/* total # of properties */
 	CONNECTOR_PROP_COUNT
 };
@@ -468,9 +468,6 @@ struct msm_display_topology {
  */
 struct msm_mode_info {
 	uint32_t frame_rate;
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-	uint32_t frame_rate_org;
-#endif
 	uint32_t vtotal;
 	uint32_t prefill_lines;
 	uint32_t jitter_numer;
@@ -894,9 +891,6 @@ int msm_fb_obj_get_attrs(struct drm_gem_object *obj, int *fb_ns,
 struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev);
 void msm_fbdev_free(struct drm_device *dev);
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-int __msm_drm_notifier_call_chain(unsigned long event, void *data);
-#endif
 
 struct hdmi;
 #ifdef CONFIG_DRM_MSM_HDMI
@@ -1048,5 +1042,9 @@ static inline unsigned long timeout_to_jiffies(const ktime_t *timeout)
 int msm_get_mixer_count(struct msm_drm_private *priv,
 		const struct drm_display_mode *mode,
 		const struct msm_resource_caps_info *res, u32 *num_lm);
+
+int msm_drm_register_notifier_client(struct notifier_block *nb);
+int msm_drm_unregister_notifier_client(struct notifier_block *nb);
+int __msm_drm_notifier_call_chain(unsigned long event, void *data);
 
 #endif /* __MSM_DRV_H__ */

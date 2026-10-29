@@ -21,23 +21,19 @@
 #include <linux/mutex.h>
 
 #define POC_IMG_ADDR	(0x000000)
-#define POC_ERASE_4KB	(4096)
-#define POC_ERASE_32KB	(32768)
-#define POC_ERASE_64KB	(65536)
+#define POC_ERASE_SECTOR	(4096)
+#define POC_ERASE_32KB		(32768)
+#define POC_ERASE_64KB		(65536)
+
 
 /* Register to cnotrol POC */
 #define POC_CTRL_REG	0xEB
 
 #define DEBUG_POC_CNT 4096
 
-enum FLASH_READ_CASE {
-	READ_CASE1,
-	READ_CASE2,
-	NONE_CASE,
-};
-
 int ss_dsi_poc_init(struct samsung_display_driver_data *vdd);
 void ss_poc_read_mca(struct samsung_display_driver_data *vdd);
 void ss_poc_comp(struct samsung_display_driver_data *vdd);
+int ss_is_poc_open(void);
 
 #endif

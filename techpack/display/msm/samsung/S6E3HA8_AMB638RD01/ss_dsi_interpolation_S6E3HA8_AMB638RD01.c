@@ -46,6 +46,84 @@ static struct ss_interpolation_brightness_table hbm_interpolation_table[] = {
 	{446, 5, 700},
 };
 
+#if defined(CONFIG_MACH_CROWNQLTE_KDI) || defined(CONFIG_MACH_CROWNQLTE_DCM)
+static struct ss_interpolation_brightness_table normal_interpolation_table[] = {
+	{0, 1, 2},
+	{7, 28, 3},
+	{14, 28, 4},
+	{21, 28, 5},
+	{28, 28, 6},
+	{35, 28, 7},
+	{39, 28, 8},
+	{43, 28, 9},
+	{47, 28, 10},
+	{51, 28, 11},
+	{55, 28, 12},
+	{59, 28, 13},
+	{63, 28, 14},
+	{67, 28, 15},
+	{71, 28, 16},
+	{75, 28, 17},
+	{79, 28, 18},
+	{83, 28, 19},
+	{86, 28, 20},
+	{89, 28, 21},
+	{92, 28, 23},
+	{95, 28, 24},
+	{98, 28, 26},
+	{101, 28, 27},
+	{104, 28, 29},
+	{107, 28, 31},
+	{110, 28, 33},
+	{113, 28, 35},
+	{116, 28, 37},
+	{119, 28, 39},
+	{122, 28, 42},
+	{124, 28, 45},
+	{126, 28, 48},
+	{128, 28, 51},
+	{131, 28, 54},
+	{134, 28, 57},
+	{136, 28, 61},
+	{138, 28, 65},
+	{140, 28, 69},
+	{142, 28, 73},
+	{144, 28, 78},
+	{146, 28, 83},
+	{148, 28, 88},
+	{150, 28, 94},
+	{152, 28, 100},
+	{154, 28, 106},
+	{156, 28, 113},
+	{158, 28, 120},
+	{160, 29, 128},
+	{162, 29, 136},
+	{164, 29, 145},
+	{166, 28, 154},
+	{168, 28, 164},
+	{170, 28, 174},
+	{174, 28, 185},
+	{178, 28, 197},
+	{182, 28, 210},
+	{186, 28, 223},
+	{190, 28, 237},
+	{194, 28, 253},
+	{198, 28, 269},
+	{204, 28, 286},
+	{209, 28, 301},
+	{214, 28, 317},
+	{219, 28, 333},
+	{223, 28, 340},
+	{227, 28, 347},
+	{230, 28, 354},
+	{234, 28, 362},
+	{238, 28, 369},
+	{242, 28, 376},
+	{246, 28, 384},
+	{250, 28, 392},
+	{255, 28, 400},
+};
+#else
 static struct ss_interpolation_brightness_table normal_interpolation_table[] = {
 	{0, 1, 2},
 	{7, 28, 3},
@@ -122,6 +200,7 @@ static struct ss_interpolation_brightness_table normal_interpolation_table[] = {
 	{250, 28, 392},
 	{255, 28, 400},
 };
+#endif
 
 static unsigned char table_hbm_br_info[] = {
 	0x00, 0x0C, 0x26, 0x16, 0x16, 0x16, 0x25, 0x69, 0xD6, 0x62, 0x06, 0x57, 0x53, 0x89, 0x83, 0x83, 0x83, 0x2C, 0x2C, 0x2C, 0x2C, 0x2C, 0x2C,
@@ -311,40 +390,34 @@ int init_interpolation_S6E3HA8_AMB638RD01(struct samsung_display_driver_data *vd
 
 int flash_gamma_support_S6E3HA8_AMB638RD01(struct samsung_display_driver_data *vdd)
 {
-	/* Disable Gamma Flash */
-	return 0;
+	if (ss_panel_id2_get(vdd) <= 0x43)
+		return 0;
+	else
+		return 1;
 }
 
 int table_parsing_data_S6E3HA8_AMB638RD01(struct samsung_display_driver_data *vdd)
 {
-	struct hbm_table_format {
-		unsigned char aor[AOR_SIZE];
-		unsigned char vint[VINT_SIZE];
-		unsigned char elvss[ELVSS_SIZE];
-		unsigned char irc[IRC_SIZE];
-	}__packed;
+	int gamma_size = vdd->dtsi_data.gamma_size;
+	int aor_size = vdd->dtsi_data.aor_size;
+	int vint_size = vdd->dtsi_data.vint_size;
+	int elvss_size = vdd->dtsi_data.elvss_size;
+	int irc_size = vdd->dtsi_data.irc_size;
 
-	struct normal_table_format {
-		unsigned char gamma[GAMMA_SIZE];
-		unsigned char aor[AOR_SIZE];
-		unsigned char vint[VINT_SIZE];
-		unsigned char elvss[ELVSS_SIZE];
-		unsigned char irc[IRC_SIZE];
-	}__packed;
+	/* Calculate structure sizes dynamically */
+	int hbm_struct_size = aor_size + vint_size + elvss_size + irc_size;
+	int normal_struct_size = gamma_size + aor_size + vint_size + elvss_size + irc_size;
+	int hmd_struct_size = gamma_size + aor_size;
 
-	struct hmd_table_format {
-		unsigned char gamma[GAMMA_SIZE];
-		unsigned char aor[AOR_SIZE];
-	}__packed;
+	/* Direct pointer access to table data */
+	unsigned char *hbm_table = (unsigned char *)table_hbm_br_info;
+	int hbm_step = sizeof(table_hbm_br_info) / hbm_struct_size;
 
-	struct hbm_table_format *hbm_table = (struct hbm_table_format *)table_hbm_br_info;
-	int hbm_step = (int)sizeof(table_hbm_br_info) / (int)sizeof(struct hbm_table_format);
+	unsigned char *normal_table = (unsigned char *)table_normal_br_info;
+	int normal_step = sizeof(table_normal_br_info) / normal_struct_size;
 
-	struct normal_table_format *normal_table = (struct normal_table_format *)table_normal_br_info;
-	int normal_step = (int)sizeof(table_normal_br_info) / (int)sizeof(struct normal_table_format);
-
-	struct hmd_table_format *hmd_table = (struct hmd_table_format *)table_hmd_br_info;
-	int hmd_step = (int)sizeof(table_hmd_br_info) / (int)sizeof(struct hmd_table_format);
+	unsigned char *hmd_table = (unsigned char *)table_hmd_br_info;
+	int hmd_step = sizeof(table_hmd_br_info) / hmd_struct_size;
 
 	int input_table_size = sizeof(table_hbm_br_info) + sizeof(table_normal_br_info) + sizeof(table_hmd_br_info);
 	unsigned char *dst = vdd->panel_br_info.br_data_raw;
@@ -364,27 +437,50 @@ int table_parsing_data_S6E3HA8_AMB638RD01(struct samsung_display_driver_data *vd
 
 	LCD_INFO("hbm_step : %d normal_step : %d hmd_step : %d", hbm_step, normal_step, hmd_step);
 
-	/* hbm data update */
+	/* HBM data update - access data directly from byte array */
 	for (loop = 0; loop < hbm_step; loop++) {
-		memcpy(dst + vdd->dtsi_data.flash_table_hbm_aor_offset + (AOR_SIZE * loop), hbm_table[loop].aor, AOR_SIZE);
-		memcpy(dst + vdd->dtsi_data.flash_table_hbm_vint_offset + (VINT_SIZE * loop), hbm_table[loop].vint, VINT_SIZE);
-		memcpy(dst + vdd->dtsi_data.flash_table_hbm_elvss_offset + (ELVSS_SIZE * loop), hbm_table[loop].elvss, ELVSS_SIZE);
-		memcpy(dst + vdd->dtsi_data.flash_table_hbm_irc_offset + (IRC_SIZE * loop), hbm_table[loop].irc, IRC_SIZE);
+		unsigned char *current_hbm = hbm_table + (loop * hbm_struct_size);
+
+		/* Extract data from packed structure layout */
+		unsigned char *aor_data = current_hbm;
+		unsigned char *vint_data = current_hbm + aor_size;
+		unsigned char *elvss_data = current_hbm + aor_size + vint_size;
+		unsigned char *irc_data = current_hbm + aor_size + vint_size + elvss_size;
+
+		memcpy(dst + vdd->dtsi_data.flash_table_hbm_aor_offset + (aor_size * loop), aor_data, aor_size);
+		memcpy(dst + vdd->dtsi_data.flash_table_hbm_vint_offset + (vint_size * loop), vint_data, vint_size);
+		memcpy(dst + vdd->dtsi_data.flash_table_hbm_elvss_offset + (elvss_size * loop), elvss_data, elvss_size);
+		memcpy(dst + vdd->dtsi_data.flash_table_hbm_irc_offset + (irc_size * loop), irc_data, irc_size);
 	}
 
-	/* normal data update */
+	/* Normal data update - access data directly from byte array */
 	for (loop = 0; loop < normal_step; loop++) {
-		memcpy(dst + vdd->dtsi_data.flash_table_normal_gamma_offset + (GAMMA_SIZE * loop), normal_table[loop].gamma, GAMMA_SIZE);
-		memcpy(dst + vdd->dtsi_data.flash_table_normal_aor_offset + (AOR_SIZE * loop), normal_table[loop].aor, AOR_SIZE);
-		memcpy(dst + vdd->dtsi_data.flash_table_normal_vint_offset + (VINT_SIZE * loop), normal_table[loop].vint, VINT_SIZE);
-		memcpy(dst + vdd->dtsi_data.flash_table_normal_elvss_offset + (ELVSS_SIZE * loop), normal_table[loop].elvss, ELVSS_SIZE);
-		memcpy(dst + vdd->dtsi_data.flash_table_normal_irc_offset + (IRC_SIZE * loop), normal_table[loop].irc, IRC_SIZE);
+		unsigned char *current_normal = normal_table + (loop * normal_struct_size);
+
+		/* Extract data from packed structure layout */
+		unsigned char *gamma_data = current_normal;
+		unsigned char *aor_data = current_normal + gamma_size;
+		unsigned char *vint_data = current_normal + gamma_size + aor_size;
+		unsigned char *elvss_data = current_normal + gamma_size + aor_size + vint_size;
+		unsigned char *irc_data = current_normal + gamma_size + aor_size + vint_size + elvss_size;
+
+		memcpy(dst + vdd->dtsi_data.flash_table_normal_gamma_offset + (gamma_size * loop), gamma_data, gamma_size);
+		memcpy(dst + vdd->dtsi_data.flash_table_normal_aor_offset + (aor_size * loop), aor_data, aor_size);
+		memcpy(dst + vdd->dtsi_data.flash_table_normal_vint_offset + (vint_size * loop), vint_data, vint_size);
+		memcpy(dst + vdd->dtsi_data.flash_table_normal_elvss_offset + (elvss_size * loop), elvss_data, elvss_size);
+		memcpy(dst + vdd->dtsi_data.flash_table_normal_irc_offset + (irc_size * loop), irc_data, irc_size);
 	}
 
-	/* hmd data update */
+	/* HMD data update - access data directly from byte array */
 	for (loop = 0; loop < hmd_step; loop++) {
-		memcpy(dst + vdd->dtsi_data.flash_table_hmd_gamma_offset + (GAMMA_SIZE * loop), hmd_table[loop].gamma, GAMMA_SIZE);
-		memcpy(dst + vdd->dtsi_data.flash_table_hmd_aor_offset + (AOR_SIZE * loop), hmd_table[loop].aor, AOR_SIZE);
+		unsigned char *current_hmd = hmd_table + (loop * hmd_struct_size);
+
+		/* Extract data from packed structure layout */
+		unsigned char *gamma_data = current_hmd;
+		unsigned char *aor_data = current_hmd + gamma_size;
+
+		memcpy(dst + vdd->dtsi_data.flash_table_hmd_gamma_offset + (gamma_size * loop), gamma_data, gamma_size);
+		memcpy(dst + vdd->dtsi_data.flash_table_hmd_aor_offset + (aor_size * loop), aor_data, aor_size);
 	}
 
 	return 0;
@@ -422,305 +518,3 @@ int table_gamma_update_S6E3HA8_AMB638RD01(struct samsung_display_driver_data *vd
 	return 0;
 }
 
-void gen_hbm_interpolation_gamma_S6E3HA8_AMB638RD01(struct samsung_display_driver_data *vdd,
-		struct ss_interpolation_brightness_table *normal_table, int normal_table_size)
-{
-	int step_cnt, extend_index, gamma_index;
-	struct ss_interpolation *ss_itp;
-
-	unsigned char **normal_gamma = vdd->panel_br_info.normal.gamma;
-	unsigned char **hbm_interpolation_gamma;
-	unsigned char *hbm_b3_read = vdd->panel_br_info.hbm_max_gamma;
-
-	int normal_interpolation_step;
-	int normal_max_candela;
-
-	int hbm_interpolation_step;
-	int hbm_max_candela;
-
-	int *hbm_interpolation_candela;
-	int **hbm_temp_gamma;
-
-	int gamma_size = vdd->dtsi_data.gamma_size;
-	int extension_gamma_size = gamma_size + V0_VT_BYTE - V255_START;
-	int *extend_normal_max_gamma;
-	int *extend_hbm_max_gamma;
-
-	int v255_red_normal_bit8, v255_green_normal_bit8, v255_blue_normal_bit8;
-	int v255_red_hbm_bit8, v255_green_hbm_bit8, v255_blue_hbm_bit8;
-
-	int gen_rate;
-	int allocated_step;
-
-	if (vdd->panel_br_info.itp_mode == FLASH_INTERPOLATION)
-		ss_itp = &vdd->flash_itp;
-	else
-		ss_itp = &vdd->table_itp;
-
-	hbm_interpolation_gamma = ss_itp->hbm.gamma;
-
-	normal_interpolation_step = ss_itp->normal.brightness_step;
-	normal_max_candela = ss_itp->normal.br_aor_table[normal_interpolation_step - 1].lux_mode;
-
-	hbm_interpolation_step = ss_itp->hbm.brightness_step;
-	hbm_max_candela = ss_itp->hbm.br_table[hbm_interpolation_step - 1].lux_mode;
-
-	extend_normal_max_gamma = kzalloc(extension_gamma_size * sizeof(int), GFP_KERNEL);
-	if (!extend_normal_max_gamma) {
-		LCD_ERR("fail to alloc extend_normal_max_gamma %d\n", __LINE__);
-		return;
-	}
-
-	extend_hbm_max_gamma = kzalloc(extension_gamma_size * sizeof(int), GFP_KERNEL);
-	if (!extend_hbm_max_gamma) {
-		LCD_ERR("fail to alloc extend_hbm_max_gamma %d\n", __LINE__);
-		goto alloc_fail1;
-	}
-
-	/* alloc 2 dimenstion matrix */
-	hbm_temp_gamma = kzalloc(hbm_interpolation_step * sizeof(void *), GFP_KERNEL);
-	if (!hbm_temp_gamma) {
-		LCD_ERR("fail to alloc hbm_temp_gamma %d\n", __LINE__);
-		goto alloc_fail2;
-	}
-
-	for (allocated_step = 0; allocated_step < hbm_interpolation_step; allocated_step++) {
-		hbm_temp_gamma[allocated_step] = kzalloc(extension_gamma_size * sizeof(int), GFP_KERNEL);
-
-		if (!hbm_temp_gamma[allocated_step]) {
-			LCD_ERR("fail to alloc	hbm_temp_gamma %d\n", __LINE__);
-			goto alloc_fail3;
-		}
-	}
-
-	hbm_interpolation_candela = kzalloc(hbm_interpolation_step * sizeof(int), GFP_KERNEL);
-	if (!hbm_interpolation_candela) {
-		LCD_ERR("fail to alloc hbm_interpolation_candela %d\n", __LINE__);
-		goto alloc_fail3;
-	}
-
-	for (step_cnt = 0; step_cnt < hbm_interpolation_step; step_cnt++) {
-		hbm_interpolation_candela[step_cnt] = ss_itp->hbm.br_table[step_cnt].lux_mode;
-		LCD_DEBUG("%d candela : %d\n", step_cnt, hbm_interpolation_candela[step_cnt]);
-	}
-
-	/* copy & extend V255 BIT8 for (hbm & normal) max gamma*/
-	for (gamma_index = 0, extend_index = 0; gamma_index < gamma_size; gamma_index++) {
-		if (gamma_index == 0) {
-			/* Check BIT8 gamma for V255 */
-			v255_red_normal_bit8 = normal_gamma[0][0] & BIT(V255_RED_BIT8) ? 1 : 0;
-			v255_green_normal_bit8 = normal_gamma[0][0] & BIT(V255_GREEN_BIT8) ? 1 : 0;
-			v255_blue_normal_bit8 = normal_gamma[0][0] & BIT(V255_BLUE_BIT8) ? 1 : 0;
-
-			v255_red_hbm_bit8 = hbm_b3_read[0] & BIT(V255_RED_BIT8) ? 1 : 0;
-			v255_green_hbm_bit8 = hbm_b3_read[0] & BIT(V255_GREEN_BIT8) ? 1 : 0;
-			v255_blue_hbm_bit8 = hbm_b3_read[0] & BIT(V255_BLUE_BIT8) ? 1 : 0;
-		} else {
-			extend_normal_max_gamma[extend_index] = normal_gamma[0][gamma_index];
-			extend_hbm_max_gamma[extend_index] = hbm_b3_read[gamma_index];
-
-			/* V255 RED */
-			if (gamma_index == 1) {
-				extend_normal_max_gamma[extend_index] |= v255_red_normal_bit8 << 8;
-				extend_hbm_max_gamma[extend_index] |= v255_red_hbm_bit8 << 8;
-			}
-
-			/* V255 GREEN */
-			if (gamma_index == 2) {
-				extend_normal_max_gamma[extend_index] |= v255_green_normal_bit8 << 8;
-				extend_hbm_max_gamma[extend_index] |= v255_green_hbm_bit8 << 8;
-			}
-
-			/* V255 BLUE */
-			if (gamma_index == 3) {
-				extend_normal_max_gamma[extend_index] |= v255_blue_normal_bit8 << 8;
-				extend_hbm_max_gamma[extend_index] |= v255_blue_hbm_bit8 << 8;
-			}
-
-			if (gamma_index >= 31) {
-				extend_normal_max_gamma[extend_index] = normal_gamma[0][gamma_index] >> 4;
-				extend_hbm_max_gamma[extend_index] = hbm_b3_read[gamma_index] >> 4;
-
-				extend_index++;
-
-				extend_normal_max_gamma[extend_index] = normal_gamma[0][gamma_index] & 0x0F;
-				extend_hbm_max_gamma[extend_index] = hbm_b3_read[gamma_index] & 0x0F;
-			}
-
-			extend_index++;
-		}
-	}
-
-	for (extend_index = 0, extend_index = 0; extend_index < extension_gamma_size; extend_index++) {
-		LCD_DEBUG("%d 0x%x 0x%x\n", extend_index, extend_hbm_max_gamma[extend_index], extend_normal_max_gamma[extend_index]);
-	}
-
-	LCD_DEBUG("normal_max_candela : %d hbm_max_candela %d\n", normal_max_candela, hbm_max_candela);
-
-	for (step_cnt = 0 ; step_cnt < hbm_interpolation_step; step_cnt++) {
-		gen_rate = ((hbm_interpolation_candela[step_cnt] - normal_max_candela) * BIT_SHFIT_MUL) /
-			(hbm_max_candela - normal_max_candela);
-		for (extend_index = 0; extend_index < extension_gamma_size; extend_index++)
-			hbm_temp_gamma[step_cnt][extend_index] = extend_normal_max_gamma[extend_index] +
-				((extend_hbm_max_gamma[extend_index] - extend_normal_max_gamma[extend_index]) * gen_rate) / BIT_SHFIT_MUL;
-	}
-
-	/* update max hbm gamma with origin hbm gamma */
-	for (extend_index = 0; extend_index < extension_gamma_size; extend_index++)
-		hbm_temp_gamma[hbm_interpolation_step - 1][extend_index] = extend_hbm_max_gamma[extend_index];
-
-	/* translate to HBM interpolation gamma packet format */
-	for (step_cnt = 0; step_cnt < hbm_interpolation_step; step_cnt++) {
-		/* gamma */
-		for (gamma_index = 0, extend_index = 0; gamma_index < gamma_size; gamma_index++) {
-			if (gamma_index == 0) {
-				/* RED */
-				hbm_interpolation_gamma[step_cnt][gamma_index] =
-					hbm_temp_gamma[step_cnt][RED_ORDER] & BIT(8) ? BIT(0) << V255_RED_BIT8 : 0;
-
-				/* GREEN */
-				hbm_interpolation_gamma[step_cnt][gamma_index] |=
-					hbm_temp_gamma[step_cnt][GREEN_ORDER] & BIT(8) ? BIT(0) << V255_GREEN_BIT8 : 0;
-
-				/* GREEN */
-				hbm_interpolation_gamma[step_cnt][gamma_index] |=
-					hbm_temp_gamma[step_cnt][BLUE_ORDER] & BIT(8) ? BIT(0) << V255_BLUE_BIT8 : 0;
-			} else if (gamma_index >= 31) {
-				hbm_interpolation_gamma[step_cnt][gamma_index] = (char)hbm_temp_gamma[step_cnt][extend_index++] << 4;
-				hbm_interpolation_gamma[step_cnt][gamma_index] |= (char)hbm_temp_gamma[step_cnt][extend_index++];
-			} else
-				hbm_interpolation_gamma[step_cnt][gamma_index] = (char)hbm_temp_gamma[step_cnt][extend_index++];
-		}
-	}
-
-	kfree(hbm_interpolation_candela);
-
-alloc_fail3:
-	for (step_cnt = 0; step_cnt < allocated_step; step_cnt++)
-		kfree(hbm_temp_gamma[step_cnt]);
-	kfree(hbm_temp_gamma);
-alloc_fail2:
-	kfree(extend_hbm_max_gamma);
-alloc_fail1:
-	kfree(extend_normal_max_gamma);
-}
-
-void gen_hbm_interpolation_irc_S6E3HA8_AMB638RD01(struct samsung_display_driver_data *vdd,
-		struct ss_interpolation_brightness_table *hbml_table, int hbm_table_size)
-{
-	int loop, index;
-	struct ss_hbm_interpolation *hbm_itp;
-	int hbm_interpolation_step;
-
-	unsigned int irc_size = vdd->dtsi_data.irc_size;
-	unsigned char *normal_max_candela_irc = vdd->panel_br_info.normal.irc[0]; /* flash data write oder */
-
-	unsigned char **dest_irc;
-	unsigned int normal_max_brightness = vdd->panel_br_info.normal.candela_table[0]; /* flash data write oder */
-
-	unsigned int cur_brightness, color;
-	int irc_64 = 0, irc_128 = 0, irc_192 = 0;
-	int irc_dest_index_64 = 0, irc_dest_index_128 = 0, irc_dest_index_192 = 0;
-	int result;
-
-	if (vdd->panel_br_info.itp_mode == FLASH_INTERPOLATION)
-		hbm_itp = &vdd->flash_itp.hbm;
-	else
-		hbm_itp = &vdd->table_itp.hbm;
-
-	hbm_interpolation_step = hbm_itp->brightness_step;
-	dest_irc = hbm_itp->irc;
-
-	for (loop = 0; loop < hbm_interpolation_step; loop++) {
-		/* copy default irc string */
-		memcpy(dest_irc[loop], normal_max_candela_irc, irc_size);
-
-		cur_brightness = hbm_itp->br_table[loop].interpolation_br_x10000;
-
-		for (color = RED_ORDER; color < COLOR_ORDER_MAX; color++) {
-
-			for (index = IRC_64_V1; index < IRC_V1_MAX;index++) {
-
-				if (index == IRC_64_V1) {
-					irc_dest_index_64 = IRC_START_VERSION_1 + (COLOR_ORDER_MAX * IRC_64_V1) + color;
-					irc_64 = (int)normal_max_candela_irc[irc_dest_index_64];
-
-					result = (irc_64 * cur_brightness) / normal_max_brightness;
-					dest_irc[loop][irc_dest_index_64] = ROUNDING(result / MULTIPLY_x100, MULTIPLY_x100) / MULTIPLY_x100;
-				} else if (index == IRC_128_V1) {
-					irc_dest_index_128 = IRC_START_VERSION_1 + (COLOR_ORDER_MAX * IRC_128_V1) + color;
-					irc_128 = (int)normal_max_candela_irc[irc_dest_index_128];
-
-					result = (((irc_64 + irc_128) * cur_brightness) / normal_max_brightness) - (dest_irc[loop][irc_dest_index_64] * MULTIPLY_x10000);
-					dest_irc[loop][irc_dest_index_128] = ROUNDING(result / MULTIPLY_x100, MULTIPLY_x100) / MULTIPLY_x100;
-				} else {
-					irc_dest_index_192 = IRC_START_VERSION_1 + (COLOR_ORDER_MAX * IRC_192_V1) + color;
-					irc_192 = (int)normal_max_candela_irc[irc_dest_index_192];
-
-					result = (((irc_64 + irc_128 + irc_192) * cur_brightness) / normal_max_brightness) -
-						((dest_irc[loop][irc_dest_index_64] + dest_irc[loop][irc_dest_index_128]) * MULTIPLY_x10000);
-					dest_irc[loop][irc_dest_index_192] =  ROUNDING(result / MULTIPLY_x100, MULTIPLY_x100) / MULTIPLY_x100;
-				}
-			}
-		}
-	}
-}
-
-void gen_normal_interpolation_irc_S6E3HA8_AMB638RD01(struct samsung_display_driver_data *vdd,
-		struct ss_interpolation_brightness_table *normal_table, int normal_table_size)
-{
-	int loop, index;
-	int normal_interpolation_step;
-	struct ss_normal_interpolation *normal_itp;
-	unsigned char **dest_irc;
-
-	unsigned int irc_size = vdd->dtsi_data.irc_size;
-	unsigned char *normal_max_candela_irc = vdd->panel_br_info.normal.irc[0]; /* flash data write oder */
-	unsigned int max_brightness = vdd->panel_br_info.normal.candela_table[0]; /* flash data write oder */
-	unsigned int cur_brightness, color;
-	int irc_64 = 0, irc_128 = 0, irc_192 = 0;
-	int irc_dest_index_64 = 0, irc_dest_index_128 = 0, irc_dest_index_192 = 0;
-	int result;
-
-	if (vdd->panel_br_info.itp_mode == FLASH_INTERPOLATION)
-		normal_itp = &vdd->flash_itp.normal;
-	else
-		normal_itp = &vdd->table_itp.normal;
-
-	normal_interpolation_step = normal_itp->brightness_step;
-	dest_irc = normal_itp->irc;
-
-	for (loop = 0; loop < normal_interpolation_step; loop++) {
-		/* copy default irc string */
-		memcpy(dest_irc[loop], normal_max_candela_irc, irc_size);
-
-		cur_brightness = normal_itp->br_aor_table[loop].interpolation_br_x10000;
-
-		for (color = RED_ORDER; color < COLOR_ORDER_MAX; color++) {
-
-			for (index = IRC_64_V1; index < IRC_V1_MAX;index++) {
-
-				if (index == IRC_64_V1) {
-					irc_dest_index_64 = IRC_START_VERSION_1 + (COLOR_ORDER_MAX * IRC_64_V1) + color;
-					irc_64 = (int)normal_max_candela_irc[irc_dest_index_64];
-
-					result = (irc_64 * cur_brightness) / max_brightness;
-					dest_irc[loop][irc_dest_index_64] = ROUNDING(result / MULTIPLY_x100, MULTIPLY_x100) / MULTIPLY_x100;
-				} else if (index == IRC_128_V1) {
-					irc_dest_index_128 = IRC_START_VERSION_1 + (COLOR_ORDER_MAX * IRC_128_V1) + color;
-					irc_128 = (int)normal_max_candela_irc[irc_dest_index_128];
-
-					result = (((irc_64 + irc_128) * cur_brightness) / max_brightness) - (dest_irc[loop][irc_dest_index_64] * MULTIPLY_x10000);
-					dest_irc[loop][irc_dest_index_128] = ROUNDING(result / MULTIPLY_x100, MULTIPLY_x100) / MULTIPLY_x100;
-				} else {
-					irc_dest_index_192 = IRC_START_VERSION_1 + (COLOR_ORDER_MAX * IRC_192_V1) + color;
-					irc_192 = (int)normal_max_candela_irc[irc_dest_index_192];
-
-					result = (((irc_64 + irc_128 + irc_192) * cur_brightness) / max_brightness) -
-						((dest_irc[loop][irc_dest_index_64] + dest_irc[loop][irc_dest_index_128]) * MULTIPLY_x10000);
-					dest_irc[loop][irc_dest_index_192] = ROUNDING(result / MULTIPLY_x100, MULTIPLY_x100) / MULTIPLY_x100;
-				}
-			}
-		}
-	}
-}

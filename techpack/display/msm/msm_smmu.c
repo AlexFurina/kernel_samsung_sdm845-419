@@ -238,33 +238,30 @@ static int msm_smmu_map_dma_buf(struct msm_mmu *mmu, struct sg_table *sgt,
 		return -ENOMEM;
 	}
 
-	/*
-	 * For import buffer type, dma_map_sg_attrs is called during
-	 * dma_buf_map_attachment and is not required to call again
-	 */
-	if (!(flags & MSM_BO_EXTBUF)) {
-		ret = dma_map_sg_attrs(client->dev, sgt->sgl, sgt->nents, dir,
-				attrs);
+        /*
+         * For import buffer type, dma_map_sg_attrs is called during
+         * dma_buf_map_attachment and is not required to call again
+         */
+        if (!(flags & MSM_BO_EXTBUF)) {
+                ret = dma_map_sg_attrs(client->dev, sgt->sgl, sgt->nents, dir,
+                                attrs);
 #if defined(CONFIG_DISPLAY_SAMSUNG)
-		if (!in_interrupt()) {
-			if (!ret) {
-				for (retry_cnt = 0; retry_cnt < 62 ; retry_cnt++) {
-					/* To wait free page by memory reclaim*/
-					usleep_range(16000, 16000);
-
-					pr_err("dma map sg failed : retry (%d)\n", retry_cnt);
-					ret = dma_map_sg_attrs(client->dev, sgt->sgl, sgt->nents, dir,
-						attrs);
-					if (!ret)
-						break;
-				}
-			}
-		}
+                if (!ret && !in_interrupt()) {
+                        for (retry_cnt = 0; retry_cnt < 62; retry_cnt++) {
+                                /* wait for free pages from memory reclaim */
+                                usleep_range(16000, 16000);
+                                pr_err("dma map sg failed : retry (%d)\n", retry_cnt);
+                                ret = dma_map_sg_attrs(client->dev, sgt->sgl,
+                                                sgt->nents, dir, attrs);
+                                if (ret)
+                                        break;
+                        }
+                }
 #endif
-		if (!ret) {
-			DRM_ERROR("dma map sg failed\n");
-			return -ENOMEM;
-		}
+                if (!ret) {
+                        DRM_ERROR("dma map sg failed\n");
+                        return -ENOMEM;
+                }
 	}
 
 	if (sgt && sgt->sgl) {
@@ -277,8 +274,9 @@ static int msm_smmu_map_dma_buf(struct msm_mmu *mmu, struct sg_table *sgt,
 
 #if defined(CONFIG_DISPLAY_SAMSUNG)
 	if (sec_debug_is_enabled() && sgt && sgt->sgl)
-		ss_smmu_debug_map(SMMU_RT_DISPLAY_DEBUG, sgt);
+		ss_smmu_debug_map(SMMU_RT_DISPLAY_DEBUG, 0, NULL, sgt);
 #endif
+
 	return 0;
 }
 
@@ -452,10 +450,6 @@ static int msm_smmu_fault_handler(struct iommu_domain *domain,
 	 * debug info.
 	 */
 
-#if defined(CONFIG_DISPLAY_SAMSUNG)
-	ss_smmu_debug_log();
-	SDE_DBG_DUMP("all", "dbg_bus", "vbif_dbg_bus", "panic"); // case 03250922
-#endif
 
 	return rc;
 }
