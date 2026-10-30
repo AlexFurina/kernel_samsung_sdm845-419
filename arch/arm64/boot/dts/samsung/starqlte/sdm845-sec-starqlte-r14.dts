@@ -45,3 +45,8 @@
 		mixer-paths = "mixer_paths_tavil_cornell.xml";
 	};
 };
+
+&pm8998_vadc {
+	/delete-node/ chan@4f;
+	/delete-node/ chan@52;
+};

@@ -20,6 +20,13 @@
 		qcom,src-sel = <0>; /* QPNP_PIN_SEL_FUNC_CONSTANT */
 		qcom,master-en = <1>; /* Enable GPIO */
 	};
+	wpc_det_default: wpc_det_default {
+		pins = "gpio17";
+		function = "normal";
+		input-enable;
+		bias-disable;
+		power-source = <0>;
+	};
 	gpio@c900 { /* GPIO 10 */
 		status = "okay";
 		qcom,master-en = <0>;
@@ -36,57 +43,40 @@
 			chan@4e { /* AMUX_2 */
 				label = "vphr_check";
 				reg = <0x4e>;
-				qcom,decimation = <0>;
-				qcom,pre-div-channel-scaling = <0>;
-				qcom,calibration-type = "ratiometric";
-				qcom,scale-function = <2>;
-				qcom,hw-settle-time = <2>;
-				qcom,fast-avg-setup = <0>;
+				qcom,ratiometric;
+				qcom,hw-settle-time = <200>;
+				qcom,pre-scaling = <1 1>;
 			};
 			chan@56 { /* PM8998 GPIO 12 */
 				label = "usb_therm";
 				reg = <0x56>;
-				qcom,decimation = <0>;
-				qcom,pre-div-channel-scaling = <0>;
-				qcom,calibration-type = "ratiometric";
-				qcom,scale-function = <2>;
-				qcom,hw-settle-time = <2>;
-				qcom,fast-avg-setup = <0>;
+				qcom,ratiometric;
+				qcom,hw-settle-time = <200>;
+				qcom,pre-scaling = <1 1>;
 			};
 			chan@50 {
 				label = "chg_therm";
 				reg = <0x50>;
-				qcom,decimation = <0>;
-				qcom,pre-div-channel-scaling = <0>;
-				qcom,calibration-type = "ratiometric";
-				qcom,scale-function = <2>;
-				qcom,hw-settle-time = <2>;
-				qcom,fast-avg-setup = <0>;
+				qcom,ratiometric;
+				qcom,hw-settle-time = <200>;
+				qcom,pre-scaling = <1 1>;
 			};
 			chan@54 { /* PM8998 GPIO 10 */
 				label = "wpc_therm";
 				reg = <0x54>;
-				qcom,decimation = <0>;
-				qcom,pre-div-channel-scaling = <0>;
-				qcom,calibration-type = "ratiometric";
-				qcom,scale-function = <2>;
-				qcom,hw-settle-time = <2>;
-				qcom,fast-avg-setup = <0>;
+				qcom,ratiometric;
+				qcom,hw-settle-time = <200>;
+				qcom,pre-scaling = <1 1>;
 			};
 		};
 	};
 };
 
 &pm8998_adc_tm {
-        chan@54 { /* PM8998 GPIO 10 */
-                label = "wpc_therm";
-                reg = <0x54>;
-                qcom,pre-div-channel-scaling = <0>;
-                qcom,calibration-type = "absolute";
-                qcom,scale-function = <0>;
-                qcom,hw-settle-time = <2>;
-                qcom,btm-channel-number = <0x88>;
-        };
+	status = "okay";
+	io-channels = <&pm8998_vadc 0x83>, <&pm8998_vadc 0x4c>,
+		      <&pm8998_vadc 0x4d>, <&pm8998_vadc 0x4f>,
+		      <&pm8998_vadc 0x51>;
 };
 
 &soc {
@@ -109,8 +99,8 @@
 			interrupt-names = "mfc_wpc_det_irq";
 			interrupt-controller;
 			pinctrl-names = "default", "mfc_active", "mfc_suspend";
-			pinctrl-0 = <&mfc_i2c_active &mfc_irq_active>;
-			pinctrl-1 = <&mfc_i2c_suspend &mfc_irq_suspend>;
+			pinctrl-0 = <&mfc_i2c_active &mfc_irq_active &wpc_det_default>;
+			pinctrl-1 = <&mfc_i2c_suspend &mfc_irq_suspend &wpc_det_default>;
 			battery,wpc_det = <&pm8998_gpios 17 0>; /* WPC_DET */
 			battery,wpc_int = <&tlmm 122 0x00>; /* MFC_AP_INT */
 			battery,mst_en = <&tlmm 95 0>; /* MST_EN */
@@ -379,6 +369,11 @@
 
 		battery,adc_channels = <0x54 0x50 0x54 0x56>;
 		battery,channel_names = "adc-temp", "adc-chg-temp", "adc-wpc-temp", "adc-usb-temp";
+		io-channels = <&pm8998_vadc 0x54>,
+		              <&pm8998_vadc 0x50>,
+		              <&pm8998_vadc 0x54>,
+		              <&pm8998_vadc 0x56>;
+		io-channel-names = "adc-temp", "adc-chg-temp", "adc-wpc-temp", "adc-usb-temp";
 		battery,channel_cells = <4>;
 	};
 
