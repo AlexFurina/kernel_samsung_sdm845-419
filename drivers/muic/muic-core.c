@@ -26,11 +26,6 @@
 #include <linux/usb_notify.h>
 #endif
 
-#if defined(CONFIG_MFD_S2MU005)
-#include <linux/mfd/samsung/s2mu005.h>
-#include <linux/mfd/samsung/s2mu005-private.h>
-#endif
-
 #if defined(CONFIG_MFD_MAX77804) || defined(CONFIG_MFD_MAX77804K)
 #include <linux/mfd/max77804.h>
 #include <linux/mfd/max77804-private.h>
@@ -66,12 +61,6 @@ static struct switch_dev switch_dock = {
 	.name = "dock",
 };
 
-#ifdef CONFIG_UART3
-static struct switch_dev switch_uart3 = {
-	.name = "uart3",	/* /sys/class/switch/uart3/state */
-};
-#endif
-
 #if defined(CONFIG_SEC_FACTORY)
 struct switch_dev switch_attached_muic_cable = {
 	.name = "attached_muic_cable",	/* sys/class/switch/attached_muic_cable/state */
@@ -92,8 +81,6 @@ static struct switch_dev switch_earjackkey = {
 };
 #endif
 #endif /* CONFIG_SWITCH */
-
-int muic_wakeup_noti = 1;
 
 #if defined(CONFIG_MUIC_NOTIFIER)
 static struct notifier_block dock_notifier_block;
@@ -176,13 +163,6 @@ static int muic_handle_dock_notification(struct notifier_block *nb,
 	switch (attached_dev) {
 	case ATTACHED_DEV_DESKDOCK_MUIC:
 	case ATTACHED_DEV_DESKDOCK_VB_MUIC:
-		if (action == MUIC_NOTIFY_CMD_ATTACH) {
-			type = MUIC_DOCK_DESKDOCK;
-			name = "Desk Dock Attach";
-			return muic_dock_attach_notify(type, name);
-		}
-		else if (action == MUIC_NOTIFY_CMD_DETACH)
-			return muic_dock_detach_notify();
 #if defined(CONFIG_SEC_FACTORY)
 	case ATTACHED_DEV_JIG_UART_ON_MUIC:
 #endif
@@ -196,19 +176,6 @@ static int muic_handle_dock_notification(struct notifier_block *nb,
 		else if (action == MUIC_NOTIFY_CMD_DETACH)
 			return muic_dock_detach_notify();
 		break;
-#ifdef CONFIG_UART3	//XO Shutdown
-	case ATTACHED_DEV_JIG_UART_OFF_MUIC:
-	case ATTACHED_DEV_JIG_UART_OFF_VB_MUIC:
-	case ATTACHED_DEV_JIG_UART_ON_MUIC:
-	case ATTACHED_DEV_JIG_UART_ON_VB_MUIC:
-		/* write value at "sys/class/switch/uart3/state" */
-		if (action == MUIC_NOTIFY_CMD_ATTACH || action == MUIC_NOTIFY_CMD_DETACH) {
-			switch_set_state(&switch_uart3, action);
-			printk(KERN_DEBUG "[muic] %s: set %ld to sys/class/switch/uart3/state\n", __func__, action);
-			return NOTIFY_OK;
-		}
-		break;
-#endif
 	case ATTACHED_DEV_SMARTDOCK_MUIC:
 	case ATTACHED_DEV_SMARTDOCK_VB_MUIC:
 	case ATTACHED_DEV_SMARTDOCK_TA_MUIC:
@@ -305,15 +272,9 @@ static int muic_handle_cable_data_notification(struct notifier_block *nb,
 		break;
 #if defined(CONFIG_USB_HW_PARAM)
 	case ATTACHED_DEV_TIMEOUT_OPEN_MUIC:
-		if (action == MUIC_NOTIFY_CMD_DETACH && o_notify)
+		if (action == MUIC_NOTIFY_CMD_ATTACH && o_notify)
 			inc_hw_param(o_notify, USB_MUIC_DCD_TIMEOUT_COUNT);
 		break;
-#if defined(CONFIG_MUIC_UNIVERSAL_SM5705_AFC)
-	case ATTACHED_DEV_AFC_CHARGER_ERR_V_MUIC:
-		if (action == MUIC_NOTIFY_CMD_ATTACH && o_notify)
-			inc_hw_param(o_notify, USB_MUIC_AFC_ERROR_COUNT);
-		break;
-#endif
 #endif
 	default:
 		jig_state = 0;
@@ -398,15 +359,6 @@ static void muic_init_switch_dev_cb(void)
 				__func__, ret);
 		return;
 	}
-#ifdef CONFIG_UART3
-	/* for JigUartOnObserver */
-	ret = switch_dev_register(&switch_uart3);
-	if (ret < 0) {
-		printk(KERN_ERR "[muic] %s: Failed to register uart3 switch(%d)\n",
-				__func__, ret);
-		return;
-	}
-#endif
 #if defined(CONFIG_SEC_FACTORY)
 	ret = switch_dev_register(&switch_attached_muic_cable);
 	if (ret < 0) {
@@ -508,21 +460,6 @@ int get_afc_mode(void)
 	return afc_mode;
 }
 
-static int uart_mode = 0;
-static int __init set_uart_mode(char *str)
-{
-	get_option(&str, &uart_mode);
-	pr_info("%s: uart_mode is 0x%02x\n", __func__, uart_mode);
-
-	return 0;
-}
-early_param("uart_sel", set_uart_mode);
-
-int get_uart_mode(void)
-{
-	return uart_mode;
-}
-
 bool is_muic_usb_path_ap_usb(void)
 {
 	if (MUIC_PATH_USB_AP == muic_pdata.usb_path) {
@@ -596,36 +533,12 @@ int muic_afc_set_voltage(int voltage)
 	return -ENODEV;
 }
 
-int muic_hv_charger_disable(bool en)
-{
-	struct muic_platform_data *pdata = &muic_pdata;
-	int ret = -ENODEV;
-
-	pr_info("%s %sable\n", __func__, en ? "en" : "dis");
-
-	if (pdata && pdata->muic_hv_charger_disable_cb)
-		ret = pdata->muic_hv_charger_disable_cb(en);
-
-	return ret;
-}
-
 int muic_hv_charger_init(void)
 {
 	struct muic_platform_data *pdata = &muic_pdata;
 
 	if (pdata && pdata->muic_hv_charger_init_cb)
 		return pdata->muic_hv_charger_init_cb();
-
-	pr_err("%s: cannot supported\n", __func__);
-	return -ENODEV;
-}
-
-int muic_set_hiccup_mode(int on_off)
-{
-	struct muic_platform_data *pdata = &muic_pdata;
-
-	if (pdata && pdata->muic_set_hiccup_mode_cb)
-		return pdata->muic_set_hiccup_mode_cb(on_off);
 
 	pr_err("%s: cannot supported\n", __func__);
 	return -ENODEV;

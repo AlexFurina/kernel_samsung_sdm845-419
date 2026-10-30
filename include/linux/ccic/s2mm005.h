@@ -39,16 +39,16 @@
 #endif
 #if defined(CONFIG_DUAL_ROLE_USB_INTF)
 #include <linux/usb/class-dual-role.h>
-#elif defined(CONFIG_TYPEC)
-#include <linux/usb/typec.h>
 #endif
+
+#define AVAILABLE_VOLTAGE 12000
+#define UNIT_FOR_VOLTAGE 50
+#define UNIT_FOR_CURRENT 10
 
 #define REG_I2C_SLV_CMD		0x10
 #define REG_TX_SINK_CAPA_MSG    0x0220
 #define REG_TX_REQUEST_MSG	0x0240
 #define REG_RX_SRC_CAPA_MSG	0x0260
-
-#define HOST_ON_BY_RID000K 2
 
 #define CCIC_FW_VERSION_INVALID -1
 
@@ -195,7 +195,7 @@ typedef union
                     IS_DFP:1,
                     RP_CurrentLvl:2,
                     VBUS_CC_Short:1,
-		    VBUS_SBU_Short:1,
+                    RSP_BYTE3:1,
                     RESET:1;
 	}BITS;
 } FUNC_STATE_Type;
@@ -213,11 +213,8 @@ typedef union
 					RUN_DRY:1,
 					removing_charge_by_sbu_low:1,
 					BOOTING_RUN_DRY:1,
-                    Sleep_Cable_Detect:1, //b8
-                    PDSTATE29_SBU_DONE:1, //b9
-                    SET_VCONN_ON:1, //b10
-                    ACC_DETECTION:1, //b11
-                    RSP_BYTE:20;		 //b12 ~ b31	
+					Sleep_Cable_Detect:1,
+					RSP_BYTE:23;
 	} BITS;
 } LP_STATE_Type;
 
@@ -392,7 +389,7 @@ typedef union
                     SBU2_CNT:8,                     // b16 - b23
                     SBU_LOW_CNT:4,                  // b24 - b27
                     Alt_Mode_By_I2C:2,              // b28 - b29
-			DPM_START_ON:1,                 // b30
+                    AP_Req_Reserved_H:1,            // b30
                     Func_Abnormal_State:1;          // b31
   } BITS;
 } AP_REQ_GET_STATUS_Type;
@@ -776,7 +773,7 @@ typedef enum {
 
 typedef enum
 {
-	Rp_Sbu_check = 0,
+	Rp_None = 0,
 	Rp_56K = 1,	/* 80uA */
 	Rp_22K = 2,	/* 180uA */
 	Rp_10K = 3,	/* 330uA */
@@ -784,6 +781,7 @@ typedef enum
 } CCIC_RP_CurrentLvl;
 
 #define S2MM005_REG_MASK(reg, mask)	((reg & mask##_MASK) >> mask##_SHIFT)
+
 
 struct s2mm005_data {
 	struct device *dev;
@@ -809,7 +807,6 @@ struct s2mm005_data {
 	int water_det;
 	int run_dry;
 	int booting_run_dry;
-	int booting_run_dry_support;
 #if defined(CONFIG_SEC_FACTORY)
 	int fac_booting_dry_check;
 #endif
@@ -846,32 +843,17 @@ struct s2mm005_data {
 	int host_turn_on_event;
 	int host_turn_on_wait_time;
 	int is_samsung_accessory_enter_mode;
-	int is_in_first_sec_uvdm_req;
-	int is_in_sec_uvdm_out;
-	struct completion uvdm_out_wait;
-	struct completion uvdm_longpacket_in_wait;
 #endif
 	int manual_lpm_mode;
-	int power_role;
 #if defined(CONFIG_DUAL_ROLE_USB_INTF)
 	struct dual_role_phy_instance *dual_role;
 	struct dual_role_phy_desc *desc;
 	struct completion reverse_completion;
+	int power_role;
 	int try_state_change;
 	struct delayed_work role_swap_work;
-#elif defined(CONFIG_TYPEC)
-	struct typec_port *port;
-	struct typec_partner *partner;
-	struct usb_pd_identity partner_identity;
-	struct typec_capability typec_cap;
-	struct completion typec_reverse_completion;
-	int typec_power_role;
-	int typec_data_role;
-	int typec_try_state_change;
-	int pwr_opmode;
-	struct delayed_work typec_role_swap_work;
 #endif
-	bool pd_support;
+
 	int s2mm005_fw_product_id;
 	u8 fw_product_id;
 
@@ -880,6 +862,5 @@ struct s2mm005_data {
 #endif
 	struct delayed_work usb_external_notifier_register_work;
 	struct notifier_block usb_external_notifier_nb;
-	int detach_done_wait;
 };
 #endif /* __S2MM005_H */

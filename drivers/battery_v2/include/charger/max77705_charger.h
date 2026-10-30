@@ -31,15 +31,8 @@ enum {
 };
 
 extern unsigned int lpcharge;
-extern bool mfc_fw_update;
 //extern int is_debug_level_low;
-
-#if defined(CONFIG_SEC_FACTORY)
-extern int factory_mode;
-#endif
-
 extern void max77705_set_fw_noautoibus(int enable);
-extern void max77705_set_snkcap(u8 *snkcap_data, int length);
 
 ssize_t max77705_chg_show_attrs(struct device *dev,
 				struct device_attribute *attr, char *buf);
@@ -119,7 +112,6 @@ ssize_t max77705_chg_store_attrs(struct device *dev,
 #define MAX77705_BYP_DTLS2      0x4
 #define MAX77705_BYP_DTLS3      0x8
 
-#if 1
 /* MAX77705_CHG_REG_CHG_CNFG_00 */
 #define CHG_CNFG_00_MODE_SHIFT		        0
 #define CHG_CNFG_00_CHG_SHIFT		        0
@@ -143,29 +135,6 @@ ssize_t max77705_chg_store_attrs(struct device *dev,
 #define MAX77705_MODE_OTG			0x02
 #define MAX77705_MODE_BUCK			0x04
 #define MAX77705_MODE_BOOST			0x08
-#endif
-#define CHG_CNFG_00_MODE_SHIFT		        0
-#define CHG_CNFG_00_MODE_MASK		        (0x0F << CHG_CNFG_00_MODE_SHIFT)
-#define CHG_CNFG_00_WDTEN_SHIFT		        4
-#define CHG_CNFG_00_WDTEN_MASK		        (1 << CHG_CNFG_00_WDTEN_SHIFT)
-
-/* MAX77705_CHG_REG_CHG_CNFG_00 MODE[3:0] */
-#define MAX77705_MODE_0_ALL_OFF						0x0
-#define MAX77705_MODE_1_ALL_OFF						0x1
-#define MAX77705_MODE_2_ALL_OFF						0x2
-#define MAX77705_MODE_3_ALL_OFF						0x3
-#define MAX77705_MODE_4_BUCK_ON						0x4
-#define MAX77705_MODE_5_BUCK_CHG_ON					0x5
-#define MAX77705_MODE_6_BUCK_CHG_ON					0x6
-#define MAX77705_MODE_7_BUCK_CHG_ON					0x7
-#define MAX77705_MODE_8_BOOST_UNO_ON				0x8
-#define MAX77705_MODE_9_BOOST_ON					0x9
-#define MAX77705_MODE_A_BOOST_OTG_ON				0xA
-#define MAX77705_MODE_B_RESERVED					0xB
-#define MAX77705_MODE_C_BUCK_BOOST_UNO_ON				0xC
-#define MAX77705_MODE_D_BUCK_CHG_BOOST_UNO_ON			0xD
-#define MAX77705_MODE_E_BUCK_BOOST_OTG_ON				0xE
-#define MAX77705_MODE_F_BUCK_CHG_BOOST_OTG_ON			0xF
 
 /* MAX77705_CHG_REG_CHG_CNFG_01 */
 #define CHG_CNFG_01_FCHGTIME_SHIFT			0
@@ -202,10 +171,6 @@ ssize_t max77705_chg_store_attrs(struct device *dev,
 #define CHG_CNFG_03_TO_TIME_SHIFT		3
 #define CHG_CNFG_03_TO_TIME_MASK			(0x7 << CHG_CNFG_03_TO_TIME_SHIFT)
 #define MAX77705_TO_TIME_30M			0x3
-#define MAX77705_TO_TIME_70M			0x7
-
-#define CHG_CNFG_03_REG_AUTO_SHIPMODE_SHIFT		6
-#define CHG_CNFG_03_REG_AUTO_SHIPMODE_MASK		(0x1 << CHG_CNFG_03_REG_AUTO_SHIPMODE_SHIFT)
 
 #define CHG_CNFG_03_SYS_TRACK_DIS_SHIFT		7
 #define CHG_CNFG_03_SYS_TRACK_DIS_MASK		(0x1 << CHG_CNFG_03_SYS_TRACK_DIS_SHIFT)
@@ -225,36 +190,17 @@ ssize_t max77705_chg_store_attrs(struct device *dev,
 #define CHG_CNFG_05_REG_B2SOVRC_SHIFT	0
 #define CHG_CNFG_05_REG_B2SOVRC_MASK	(0xF << CHG_CNFG_05_REG_B2SOVRC_SHIFT)
 #define MAX77705_B2SOVRC_DISABLE	0x0
-#define MAX77705_B2SOVRC_4_6A		0x7
+#define MAX77705_B2SOVRC_4_5A		0x6
 #define MAX77705_B2SOVRC_4_8A		0x8
 #define MAX77705_B2SOVRC_5_0A		0x9
 #define MAX77705_B2SOVRC_5_2A		0xA
 #define MAX77705_B2SOVRC_5_4A		0xB
 #define MAX77705_B2SOVRC_5_6A		0xC
-#define MAX77705_B2SOVRC_5_8A		0xD
-#define MAX77705_B2SOVRC_6_0A		0xE
-#define MAX77705_B2SOVRC_6_2A		0xF
-
-#define CHG_CNFG_05_REG_UNOILIM_SHIFT	4
-#define CHG_CNFG_05_REG_UNOILIM_MASK	(0x7 << CHG_CNFG_05_REG_UNOILIM_SHIFT)
-#define MAX77705_UNOILIM_200		0x1
-#define MAX77705_UNOILIM_300		0x2
-#define MAX77705_UNOILIM_400		0x3
-#define MAX77705_UNOILIM_600		0x4
-#define MAX77705_UNOILIM_800		0x5
-#define MAX77705_UNOILIM_1000		0x6
-#define MAX77705_UNOILIM_1500		0x7
 
 /* MAX77705_CHG_CNFG_06 */
-#define CHG_CNFG_06_WDTCLR_SHIFT		0
-#define CHG_CNFG_06_WDTCLR_MASK			(0x3 << CHG_CNFG_06_WDTCLR_SHIFT)
+#define CHG_CNFG_01_WDTCLR_SHIFT		0
+#define CHG_CNFG_01_WDTCLR_MASK			(0x3 << CHG_CNFG_01_WDTCLR_SHIFT)
 #define MAX77705_WDTCLR				0x01
-#define CHG_CNFG_06_DIS_AICL_SHIFT		4
-#define CHG_CNFG_06_DIS_AICL_MASK		(0x1 << CHG_CNFG_06_DIS_AICL_SHIFT)
-#define MAX77705_DIS_AICL			0x0
-#define CHG_CNFG_06_B2SOVRC_DTC_SHIFT	7
-#define CHG_CNFG_06_B2SOVRC_DTC_MASK	(0x1 << CHG_CNFG_06_B2SOVRC_DTC_SHIFT)
-#define MAX77705_B2SOVRC_DTC_100MS		0x1
 
 /* MAX77705_CHG_REG_CHG_CNFG_07 */
 #define MAX77705_CHG_FMBST			0x04
@@ -262,8 +208,6 @@ ssize_t max77705_chg_store_attrs(struct device *dev,
 #define CHG_CNFG_07_REG_FMBST_MASK		(0x1 << CHG_CNFG_07_REG_FMBST_SHIFT)
 #define CHG_CNFG_07_REG_FGSRC_SHIFT		1
 #define CHG_CNFG_07_REG_FGSRC_MASK		(0x1 << CHG_CNFG_07_REG_FGSRC_SHIFT)
-#define CHG_CNFG_07_REG_SHIPMODE_SHIFT		0
-#define CHG_CNFG_07_REG_SHIPMODE_MASK		(0x1 << CHG_CNFG_07_REG_SHIPMODE_SHIFT)
 
 /* MAX77705_CHG_REG_CHG_CNFG_08 */
 #define CHG_CNFG_08_REG_FSW_SHIFT	0
@@ -321,30 +265,16 @@ ssize_t max77705_chg_store_attrs(struct device *dev,
 
 #define REDUCE_CURRENT_STEP						100
 #define MINIMUM_INPUT_CURRENT					300
-/* for VZW support */
-#if defined(CONFIG_TABLET_MODEL_CONCEPT) && !defined(CONFIG_SEC_FACTORY)
-#define SLOW_CHARGING_CURRENT_STANDARD          1000
-#else
 #define SLOW_CHARGING_CURRENT_STANDARD          400
-#endif
 
 #define WC_CURRENT_STEP		100
 #define WC_CURRENT_START	480
-
-#if defined(CONFIG_CHARGER_MAX77705_OTG_LIMIT)
-enum max77705_otg_limit_step {
-	MAX77705_LIMIT_STEP_DEFAULT,
-	MAX77705_LIMIT_STEP_OTG_ON,
-	MAX77705_LIMIT_STEP_NUM,
-};
-#endif
 
 struct max77705_charger_data {
 	struct device           *dev;
 	struct i2c_client       *i2c;
 	struct i2c_client       *pmic_i2c;
 	struct mutex            charger_mutex;
-	struct mutex            mode_mutex;
 
 	struct max77705_platform_data *max77705_pdata;
 
@@ -356,25 +286,20 @@ struct max77705_charger_data {
 	struct delayed_work	aicl_work;
 	struct delayed_work	isr_work;
 	struct delayed_work	recovery_work;	/*  softreg recovery work */
-#if defined(CONFIG_USE_POGO)
 	struct delayed_work	wpc_work;	/*  wpc detect work */
-#endif
 	struct delayed_work	chgin_init_work;	/*  chgin init work */
 	struct delayed_work wc_current_work;
-	struct delayed_work skipmode_work;
 
-	/* mutex */
+/* mutex */
 	struct mutex irq_lock;
 	struct mutex ops_lock;
 
 	/* wakelock */
-#if defined(CONFIG_USE_POGO)
-	struct wakeup_source *wpc_wake_lock;
-#endif
-	struct wakeup_source *chgin_wake_lock;
-	struct wakeup_source *wc_current_wake_lock;
-	struct wakeup_source *aicl_wake_lock;
-	struct wakeup_source *otg_wake_lock;
+	struct wake_lock wpc_wake_lock;
+	struct wake_lock chgin_wake_lock;
+	struct wake_lock wc_current_wake_lock;
+	struct wake_lock aicl_wake_lock;
+	struct wake_lock otg_wake_lock;
 
 	unsigned int	is_charging;
 	unsigned int	charging_type;
@@ -389,56 +314,55 @@ struct max77705_charger_data {
 	bool	slow_charging;
 	int		status;
 	int		charge_mode;
-	u8		cnfg00_mode;
 	int uvlo_attach_flag;
 	int uvlo_attach_cable_type;
-	int switching_freq;
 
 	int		irq_bypass;
 	int		irq_batp;
-#if defined(CONFIG_MAX77705_CHECK_B2SOVRC)
-	int		irq_bat;
-#endif
+
 	int		irq_battery;
 	int		irq_chg;
 	int		irq_wcin;
 	int		irq_chgin;
 	int		irq_aicl;
-	int		irq_aicl_enabled;
+	int             irq_aicl_enabled;
+	/* software regulation */
+	bool		soft_reg_state;
+	int		soft_reg_current;
+
+	/* unsufficient power */
+	bool		reg_loop_deted;
 
 	/* wireless charge, w(wpc), v(vbus) */
-#if defined(CONFIG_USE_POGO)
+	int		wc_w_gpio;
 	int		wc_w_irq;
-#endif
+	int		wc_w_state;
+	int		wc_v_gpio;
+	int		wc_v_irq;
+	int		wc_v_state;
+	bool		wc_pwr_det;
+	int		soft_reg_recovery_cnt;
 	int		wc_current;
 	int		wc_pre_current;
 
-	bool	jig_low_active;
+	bool            jig_low_active;
 	int		jig_gpio;
 
 	bool enable_sysovlo_irq;
-	bool enable_noise_wa;
 	int irq_sysovlo;
-	struct wakeup_source *sysovlo_wake_lock;
+	struct wake_lock sysovlo_wake_lock;
 
 	bool is_mdock;
 	bool otg_on;
-	bool uno_on;
-#if defined(CONFIG_CHARGER_MAX77705_OTG_LIMIT)
-	int otg_limit_step;
-	int cpu_max_freq[MAX77705_LIMIT_STEP_NUM];
-#endif
 
 	int pmic_ver;
 	int input_curr_limit_step;
 	int wpc_input_curr_limit_step;
 	int charging_curr_step;
 	int float_voltage;
-	u8 *snkcap_data;
-
-	int misalign_cnt;
 
 	sec_charger_platform_data_t *pdata;
 };
 
 #endif /* __MAX77705_CHARGER_H */
+

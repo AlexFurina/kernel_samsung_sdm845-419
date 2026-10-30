@@ -20,8 +20,6 @@
 
 #define MAX77705_PD_NAME	"MAX77705_PD"
 
-bool max77705_sec_pps_control(int en);
-
 enum {
 	CC_SNK = 0,
 	CC_SRC,
@@ -45,7 +43,7 @@ typedef union sec_pdo_object {
 					type:2;
 	} BITS_supply;
 	struct {
-		uint32_t	max_current:10,        /* 10mA units */	
+		uint32_t	max_current:10,        /* 10mA units */
 				voltage:10,            /* 50mV units */
 				peak_current:2,
 				reserved:2,
@@ -114,13 +112,6 @@ struct max77705_pd_data {
 
 	bool pdo_list;
 	bool psrdy_received;
-	bool cc_sbu_short;
-#if defined(CONFIG_PDIC_PD30)
-	bool bPPS_on;
-#endif
-
-	struct workqueue_struct *wqueue;
-	struct delayed_work retry_work;
 
 	int cc_status;
 

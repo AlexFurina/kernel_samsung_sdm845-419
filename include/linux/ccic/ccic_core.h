@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (C) 2017-2019 Samsung Electronics
+ * Copyright (C) 2017 Samsung Electronics
  *
  * Author:Wookwang Lee. <wookwang.lee@samsung.com>,
  * Author:Guneet Singh Khurana  <gs.khurana@samsung.com>,
@@ -18,7 +18,6 @@
  * along with this program.If not, see <http://www.gnu.org/licenses/>.
  *
  */
-
 #ifndef __LINUX_CCIC_CORE_H__
 #define __LINUX_CCIC_CORE_H__
 
@@ -33,7 +32,6 @@ enum {
 	CCIC_DOCK_T_VR		= 112,
 	CCIC_DOCK_UVDM		= 113,
 	CCIC_DOCK_DEXPAD	= 114,
-	CCIC_DOCK_UNSUPPORTED_AUDIO = 115,	/* Ra/Ra TypeC Analog Earphone*/
 	CCIC_DOCK_NEW		= 200,  /* For New uevent */
 };
 
@@ -42,8 +40,6 @@ typedef enum {
 	TYPE_C_ATTACH_DFP = 1, /* Host */
 	TYPE_C_ATTACH_UFP = 2, /* Device */
 	TYPE_C_ATTACH_DRP = 3, /* Dual role */
-	TYPE_C_ATTACH_SRC = 4, /* SRC */
-	TYPE_C_ATTACH_SNK = 5, /* SNK */
 } CCIC_OTP_MODE;
 
 #if defined(CONFIG_TYPEC)
@@ -56,23 +52,10 @@ typedef enum {
 
 #define TRY_ROLE_SWAP_WAIT_MS 5000
 #endif
+
 #define DUAL_ROLE_SET_MODE_WAIT_MS 1500
+
 #define GEAR_VR_DETACH_WAIT_MS		1000
-
-enum usbpd_port_data_role {
-	USBPD_UFP,
-	USBPD_DFP,
-};
-
-enum usbpd_port_power_role {
-	USBPD_SINK,
-	USBPD_SOURCE,
-};
-
-enum usbpd_port_vconn_role {
-	USBPD_VCONN_OFF,
-	USBPD_VCONN_ON,
-};
 
 #if defined(CONFIG_CCIC_NOTIFIER)
 struct ccic_state_work {
@@ -121,7 +104,6 @@ struct ccic_misc_dev {
 	int (*uvdm_read)(void *data);
 	int (*uvdm_ready)(void);
 	void (*uvdm_close)(void);
-	bool (*pps_control)(int en);
 };
 
 typedef struct _ccic_data_t {
@@ -134,14 +116,12 @@ typedef struct _ccic_data_t {
 
 int ccic_core_init(void);
 int ccic_core_register_chip(pccic_data_t pccic_data);
-void ccic_core_unregister_chip(void);
 int ccic_register_switch_device(int mode);
 void ccic_send_dock_intent(int type);
 void ccic_send_dock_uevent(u32 vid, u32 pid, int state);
+void enable_dp_switch_regulator(int mode);
 void *ccic_core_get_drvdata(void);
 int ccic_misc_init(pccic_data_t pccic_data);
-void ccic_misc_exit(void);
-void enable_dp_switch_regulator(int mode);
 extern unsigned int pn_flag;
 struct device *get_ccic_device(void);
 #endif

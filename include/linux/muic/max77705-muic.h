@@ -69,17 +69,6 @@ enum max77705_muic_command_opcode {
 	COMMAND_NONE			= 0xff,
 };
 
-enum max77705_muic_irq_info {
-	MAX77705_MUIC_IRQ_UIADC,
-	MAX77705_MUIC_IRQ_CHGTYP,
-	MAX77705_MUIC_IRQ_SPR,
-	MAX77705_MUIC_IRQ_DCDTMO,
-	MAX77705_MUIC_IRQ_VBADC,
-	MAX77705_MUIC_IRQ_VBUSDET,
-	MAX77705_MUIC_IRQ_UNKNOWN,
-	MAX77705_MUIC_IRQ_SIZE
-};
-
 #define AFC_OP_OUT_LEN 11 /* OPCODE(1) + Result(1) + VBADC(1) + RX Data(8) */
 
 #if defined(CONFIG_MUIC_MAX77705_CCIC)
@@ -111,12 +100,10 @@ struct max77705_muic_data {
 
 	int				irq_uiadc;
 	int				irq_chgtyp;
-	int				irq_fakvb;
 	int				irq_spr;
 	int				irq_dcdtmo;
 	int				irq_vbadc;
 	int				irq_vbusdet;
-	int				irq_fail_count[MAX77705_MUIC_IRQ_SIZE];
 
 	/* model dependant muic platform data */
 	struct muic_platform_data	*pdata;
@@ -141,9 +128,6 @@ struct max77705_muic_data {
 	bool				is_factory_start;
 	bool				is_check_hv;
 	bool				is_charger_ready;
-	bool				is_charger_mode;
-
-	bool				is_irq_vbusdet_high;
 
 	u8				is_boot_dpdnvden;
 
@@ -152,8 +136,6 @@ struct max77705_muic_data {
 	unsigned char			afc_op_dataout[AFC_OP_OUT_LEN];
 	int				hv_voltage;
 	int				afc_retry;
-	int				dcdtmo_retry;
-	int				bc1p2_retry_count;
 
 	/* muic status value */
 	u8				status1;
@@ -166,12 +148,12 @@ struct max77705_muic_data {
 	struct delayed_work		debug_work;
 	struct delayed_work		vbus_wa_work;
 
+	/* Fake vbus flag */
+	int				fake_chgtyp;
+
 #if defined(CONFIG_USB_EXTERNAL_NOTIFY)
 	/* USB Notifier */
 	struct notifier_block		usb_nb;
-#endif
-#if defined(CONFIG_HICCUP_CHARGER)
-	bool				is_hiccup_mode;
 #endif
 #if defined(CONFIG_MUIC_MAX77705_CCIC)
 	struct max77705_muic_ccic_evt	ccic_info_data;
@@ -202,10 +184,8 @@ enum max77705_reg_bit_control {
 
 /* MAX77705 STATUS1 register */
 #define USBC_STATUS1_UIADC_SHIFT	0
-#define USBC_STATUS1_FAKVB_SHIFT	3
 #define USBC_STATUS1_VBADC_SHIFT	4
 #define USBC_STATUS1_UIADC_MASK		(0x7 << USBC_STATUS1_UIADC_SHIFT)
-#define USBC_STATUS1_FAKVB_MASK		(0x1 << USBC_STATUS1_FAKVB_SHIFT)
 #define USBC_STATUS1_VBADC_MASK		(0xf << USBC_STATUS1_VBADC_SHIFT)
 
 /* MAX77705 BC STATUS register */
@@ -285,8 +265,7 @@ enum {
 	CHGTYP_CDP			= 0x02,
 	/* Dedicated Charger (D+/D- shorted) */
 	CHGTYP_DEDICATED_CHARGER	= 0x03,
-	/* Hiccup mode, Set D+/D- to GND */
- 	CHGTYP_HICCUP_MODE		= 0xfa,
+
 	/* DCD Timeout, Open D+/D- */
 	CHGTYP_TIMEOUT_OPEN		= 0xfb,
 	/* Any charger w/o USB */
@@ -376,8 +355,6 @@ extern int max77705_muic_suspend(struct max77705_usbc_platform_data *usbc_data);
 extern int max77705_muic_resume(struct max77705_usbc_platform_data *usbc_data);
 #if defined(CONFIG_HV_MUIC_MAX77705_AFC)
 extern bool max77705_muic_check_is_enable_afc(struct max77705_muic_data *muic_data, muic_attached_dev_t new_dev);
-extern void max77705_muic_check_afc_disabled(struct max77705_muic_data *muic_data);
-extern void max77705_muic_clear_hv_control(struct max77705_muic_data *muic_data);
 extern void max77705_muic_afc_hv_set(struct max77705_muic_data *muic_data, int voltage);
 extern void max77705_muic_qc_hv_set(struct max77705_muic_data *muic_data, int voltage);
 extern void max77705_muic_handle_detect_dev_afc(struct max77705_muic_data *muic_data, unsigned char *data);

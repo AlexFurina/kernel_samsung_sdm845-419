@@ -22,6 +22,11 @@
 #define __MUIC_INTERNAL_H__
 
 #include <linux/muic/muic.h>
+#if defined(CONFIG_MUIC_SUPPORT_EARJACK)
+#include <linux/input.h>
+#endif
+
+#define MUIC_DEV_NAME   "muic-universal"
 
 #define muic_err(fmt, ...)					\
 	do {							\
@@ -37,12 +42,7 @@
 	do {							\
 		pr_debug(pr_fmt(fmt), ##__VA_ARGS__);		\
 	} while (0)
-/*
-enum muic_op_mode {
-	OPMODE_MUIC = 0<<0,
-	OPMODE_CCIC = 1<<0,
-};
-*/
+
 /* Slave addr = 0x4A: MUIC */
 enum ioctl_cmd {
 	GET_COM_VAL = 0x01,
@@ -54,6 +54,8 @@ enum ioctl_cmd {
 	GET_OTG_STATUS = 0x7,
 	GET_CHGTYPE = 0x08,
 	GET_RESID3 = 0x09,
+	GET_COMP2 = 0x10,
+	GET_COMN1 = 0x11,
 };
 
 enum switching_mode{
@@ -97,6 +99,7 @@ typedef struct _muic_vps_scatterred_type {
         u8      val3;
         u8      adc;
         u8      vbvolt;
+	u8	chgtyp;
 }vps_scatterred_type;
 
 typedef struct _muic_vps_table_t {
@@ -118,6 +121,7 @@ typedef struct _muic_vps_table_t {
 struct muic_intr_data {
 	u8	intr1;
 	u8	intr2;
+	u8	intr3;
 };
 
 struct muic_irq_t {
@@ -127,6 +131,21 @@ struct muic_irq_t {
 	int irq_chgtyp;
 	int irq_vbvolt;
 	int irq_dcdtmr;
+	int irq_int1_attach;
+	int irq_int1_detach;
+	int irq_int2_vbusdet_on;
+	int irq_int2_rid_charger;
+	int irq_int2_mhl;
+	int irq_int2_adc_chg;
+	int irq_int2_rev_acce;
+	int irq_int2_vbus_off;
+	int irq_int3_qc20_accepted;
+	int irq_int3_afc_error;
+	int irq_int3_afc_sta_chg;
+	int irq_int3_multi_byte;
+	int irq_int3_vbus_update;
+	int irq_int3_afc_accepted;
+	int irq_int3_afc_ta_attached;
 };
 
 typedef union _muic_vps_t {
@@ -148,8 +167,6 @@ typedef struct _muic_data_t {
 
 	/* model dependant muic platform data */
 	struct muic_platform_data *pdata;
-
-	void *muic_data;
 
 	/* muic current attached device */
 	muic_attached_dev_t attached_dev;
@@ -182,8 +199,12 @@ typedef struct _muic_data_t {
 	bool			undefined_range;
 	bool			discard_interrupt;
 	bool			is_dcdtmr_intr;
-	bool 			is_dcp_charger;
-	bool			is_afc_reset;
+
+	/* Add Muic structure's member variable for VZW requirement(Rp0 Cable) */
+	bool			is_ccic_attach;
+	bool			retry_afc;
+
+	int				ccic_rp;
 
 	struct hv_data		*phv;
 
@@ -191,11 +212,23 @@ typedef struct _muic_data_t {
 	/* USB Notifier */
 	struct notifier_block	usb_nb;
 #endif
+#if defined(CONFIG_MUIC_SUPPORT_EARJACK)
+	bool			is_earkeypressed;
+	int			old_keycode;
+	struct input_dev        *input;
+#endif
+#if defined(CONFIG_SEC_DEBUG)
+	bool			usb_to_ta_state;
+#endif
+#if defined(CONFIG_SEC_FACTORY)
+	bool			is_pba_array;
+#endif
 
 #if defined(CONFIG_MUIC_SUPPORT_CCIC)
 	/* legacy TA or USB for CCIC */
 	muic_attached_dev_t	legacy_dev;
 
+	/* CCIC Notifier */
 #ifdef CONFIG_USB_TYPEC_MANAGER_NOTIFIER
 	struct notifier_block	manager_nb;
 #else
@@ -209,17 +242,19 @@ typedef struct _muic_data_t {
 	bool 			afc_water_disable;
 #endif
 
-	/* function pointer should be registered from each specific driver file */
-	int (*com_to_open_with_vbus)(void *);
-	int (*switch_to_ap_usb)(void *);
-	int (*switch_to_ap_uart)(void *);
-	int (*switch_to_cp_uart)(void *);
-	int (*get_vbus)(void *);
-	void (*set_jig_state)(void *, bool val);
-	void (*set_cable_state)(void *, muic_attached_dev_t new_dev);
-	void (*dcd_rescan)(void *);
-	void (*set_afc_reset)(void *);
+#if defined(CONFIG_MUIC_UNIVERSAL_SM5720)
+	int afc_retry_count;
+	int afc_vbus_retry_count;
+	int qc20_vbus;
+	u8 qc_support;
+	struct delayed_work	afc_retry_work;
 
+	struct delayed_work	afc_delay_check_work;
+	int delay_check_count;
+#endif
+#if defined(CONFIG_VBUS_NOTIFIER_WORK)
+	struct work_struct vbus_notify_work;
+#endif
 }muic_data_t;
 
 extern struct device *switch_device;

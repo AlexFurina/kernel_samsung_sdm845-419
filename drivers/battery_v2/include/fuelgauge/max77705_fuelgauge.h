@@ -68,6 +68,8 @@ struct sec_fg_info {
 	int pr_cnt;
 	/* full charge comp */
 	struct delayed_work	full_comp_work;
+	u32 previous_fullcap;
+	u32 previous_vffullcap;
 
 	/* battery info */
 	u32 soc;
@@ -126,8 +128,9 @@ struct battery_data_t {
 	u32 sw_v_empty_recover_vol;
 	u32 QResidual20;
 	u32 QResidual30;
+	u32 TempCo;
 	u32 Capacity;
-	u8  *type_str;
+	u8	*type_str;
 	u32 ichgterm;
 	u32 misccfg;
 	u32 fullsocthr;
@@ -159,33 +162,6 @@ struct cv_slope {
 	int time;
 };
 
-#define FG_RESET_DATA_COUNT		5
-
-struct fg_reset_wa {
-	u32 fullcapnom;
-	u32 dPacc;
-	u32 dQacc;
-	u32 rcomp0;
-	u32 tempco;
-};
-
-struct lost_soc_data {
-	/* dt data */
-	int trig_soc; /* default 10% */
-	int trig_d_soc; /* delta soc, default 2% */
-	int trig_scale; /* default 2x */
-	int guarantee_soc; /* default 2% */
-	int min_vol; /* default 3200mV */
-
-	/* data */
-	bool ing;
-	int prev_raw_soc;
-	int prev_remcap;
-	int prev_qh;
-	int lost_cap;
-	int weight;
-};
-
 struct max77705_fuelgauge_data {
 	struct device           *dev;
 	struct i2c_client       *i2c;
@@ -207,16 +183,13 @@ struct max77705_fuelgauge_data {
 	struct battery_data_t        *battery_data;
 
 	bool is_fuel_alerted;
-	struct wakeup_source *fuel_alert_wake_lock;
+	struct wake_lock fuel_alert_wake_lock;
 
 	unsigned int capacity_old;	/* only for atomic calculation */
 	unsigned int capacity_max;	/* only for dynamic calculation */
-	unsigned int g_capacity_max;	/* only for dynamic calculation */
 	unsigned int standard_capacity;
 
-	bool capacity_max_conv;
 	bool initial_update_of_soc;
-	bool sleep_initial_update_of_soc;	
 	struct mutex fg_lock;
 
 	/* register programming */
@@ -241,22 +214,16 @@ struct max77705_fuelgauge_data {
 
 	int low_temp_limit;
 
-	int vempty_recover_time;
-	unsigned long vempty_time;
-
 	bool auto_discharge_en;
 	u32 discharge_temp_threshold;
 	u32 discharge_volt_threshold;
 
 	u32 fg_resistor;
 
-	struct fg_reset_wa *fg_reset_data;
 	u32 err_cnt;
-
 #if defined(CONFIG_BATTERY_CISD)
 	bool valert_count_flag;
 #endif
-	struct lost_soc_data lost_soc;
 };
 
 #endif /* __MAX77705_FUELGAUGE_H */
