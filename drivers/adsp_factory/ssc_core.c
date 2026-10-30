@@ -178,17 +178,40 @@ static ssize_t remove_sensor_sysfs_store(struct device *dev,
 	return size;
 }
 
-extern unsigned int sec_hw_rev(void);
+static unsigned int system_rev __read_mostly;
+
+static int __init sec_hw_rev_setup(char *p)
+{
+	int ret;
+
+	ret = kstrtouint(p, 0, &system_rev);
+	if (unlikely(ret < 0)) {
+		pr_warn("androidboot.revision is malformed (%s)\n", p);
+		return -EINVAL;
+	}
+
+	pr_info("androidboot.revision %x\n", system_rev);
+
+	return 0;
+}
+early_param("androidboot.revision", sec_hw_rev_setup);
+
+static unsigned int sec_hw_rev(void)
+{
+	return system_rev;
+}
+
+unsigned int sec_hw_rev(void);
 int ssc_system_rev_test;
 static ssize_t ssc_hw_rev_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	//pr_info("[FACTORY] %s: ssc_rev:%d\n", __func__, sec_hw_rev());
+	pr_info("[FACTORY] %s: ssc_rev:%d\n", __func__, sec_hw_rev());
 
-	//if (!ssc_system_rev_test)
-	//	return snprintf(buf, PAGE_SIZE, "%d\n", sec_hw_rev());
-	//else
-	//	return snprintf(buf, PAGE_SIZE, "%d\n", ssc_system_rev_test);
+	if (!ssc_system_rev_test)
+		return snprintf(buf, PAGE_SIZE, "%d\n", sec_hw_rev());
+	else
+		return snprintf(buf, PAGE_SIZE, "%d\n", ssc_system_rev_test);
 }
 
 static ssize_t ssc_hw_rev_store(struct device *dev,
