@@ -3,10 +3,7 @@
 #include <linux/notifier.h>
 #include <linux/muic/muic.h>
 #include <linux/muic/muic_notifier.h>
-
-#if defined(CONFIG_DRV_SAMSUNG)
 #include <linux/sec_class.h>
-#endif
 
 #if defined(CONFIG_SWITCH)
 #include <linux/switch.h>
@@ -19,7 +16,7 @@
   *     b'0010 : MUIC
   *     b'1111 : Broadcasting
   */
-#define NOTI_ADDR_SRC CCIC_NOTIFY_DEV_MUIC
+#define NOTI_ADDR_SRC (1 << 1)
 #define NOTI_ADDR_DST (0xf)
 
 /* ATTACH Noti. ID */
@@ -51,10 +48,6 @@ static void __set_noti_cxt(int attach, int type)
 	if (type < 0) {
 		muic_notifier.cmd = attach;
 		muic_notifier.cxt.attach = attach;
-#if defined(CONFIG_USE_SECOND_MUIC)
-		muic_notifier.cxt.src = muic_notifier.is_second_muic ?
-			CCIC_NOTIFY_DEV_SECOND_MUIC : NOTI_ADDR_SRC;
-#endif
 		return;
 	}
 
@@ -63,17 +56,11 @@ static void __set_noti_cxt(int attach, int type)
 	muic_notifier.attached_dev = type;
 
 	/* New Interface */
-#if defined(CONFIG_USE_SECOND_MUIC)
-	muic_notifier.cxt.src = muic_notifier.is_second_muic ?
-		CCIC_NOTIFY_DEV_SECOND_MUIC : NOTI_ADDR_SRC;
-	muic_notifier.cxt.cable_type = type % ATTACHED_DEV_NUM;
-#else
 	muic_notifier.cxt.src = NOTI_ADDR_SRC;
-	muic_notifier.cxt.cable_type = type;
-#endif
 	muic_notifier.cxt.dest = NOTI_ADDR_DST;
 	muic_notifier.cxt.id = NOTI_ID_ATTACH;
 	muic_notifier.cxt.attach = attach;
+	muic_notifier.cxt.cable_type = type;
 	muic_notifier.cxt.rprd = 0;
 }
 
@@ -162,81 +149,21 @@ void muic_notifier_attach_attached_dev(muic_attached_dev_t new_dev)
 {
 	pr_info("%s: (%d)\n", __func__, new_dev);
 
-#if defined(CONFIG_USE_SECOND_MUIC)
-	mutex_lock(&muic_notifier.mutex);
-
-	if (new_dev >= ATTACHED_DEV_NUM)
-		muic_notifier.is_second_muic =true;
-	else
-		muic_notifier.is_second_muic =false;
-#endif
-
 	__set_noti_cxt(MUIC_NOTIFY_CMD_ATTACH, new_dev);
 
 	/* muic's attached_device attach broadcast */
 	muic_notifier_notify();
-
-#if defined(CONFIG_USE_SECOND_MUIC)
-	mutex_unlock(&muic_notifier.mutex);
-#endif
-}
-
-void muic_pdic_notifier_attach_attached_dev(muic_attached_dev_t new_dev)
-{
-	pr_info("%s: (%d)\n", __func__, new_dev);
-
-#if defined(CONFIG_CCIC_S2MU004)
-	__set_ccic_noti_cxt(MUIC_PDIC_NOTIFY_CMD_ATTACH, new_dev);
-
-	/* muic's attached_device attach broadcast */
-	muic_ccic_notifier_notify();
-#else
-	__set_noti_cxt(MUIC_PDIC_NOTIFY_CMD_ATTACH, new_dev);
-
-	/* muic's attached_device attach broadcast */
-	muic_notifier_notify();
-#endif
-}
-
-void muic_pdic_notifier_detach_attached_dev(muic_attached_dev_t new_dev)
-{
-	pr_info("%s: (%d)\n", __func__, new_dev);
-
-#if defined(CONFIG_CCIC_S2MU004)
-	__set_ccic_noti_cxt(MUIC_PDIC_NOTIFY_CMD_DETACH, new_dev);
-
-	/* muic's attached_device attach broadcast */
-	muic_ccic_notifier_notify();
-#else
-	__set_noti_cxt(MUIC_PDIC_NOTIFY_CMD_DETACH, muic_notifier.attached_dev);
-	/* muic's attached_device attach broadcast */
-	muic_notifier_notify();
-#endif
 }
 
 void muic_notifier_detach_attached_dev(muic_attached_dev_t cur_dev)
 {
 	pr_info("%s: (%d)\n", __func__, cur_dev);
 
-#if defined(CONFIG_USE_SECOND_MUIC)
-	mutex_lock(&muic_notifier.mutex);
-
-	if (cur_dev >= ATTACHED_DEV_NUM)
-		muic_notifier.is_second_muic =true;
-	else
-		muic_notifier.is_second_muic =false;
-#endif
-
 	__set_noti_cxt(MUIC_NOTIFY_CMD_DETACH, -1);
 
-	if (muic_notifier.cxt.cable_type != cur_dev) {
+	if (muic_notifier.cxt.cable_type != cur_dev)
 		pr_warn("%s: attached_dev of muic_notifier(%d) != muic_data(%d)\n",
 				__func__, muic_notifier.cxt.cable_type, cur_dev);
-#if defined(CONFIG_USE_SECOND_MUIC)
-		pr_info("%s: set cable_type of muic_notifier(%d) to cur_dev(%d)\n", __func__, muic_notifier.cxt.cable_type, cur_dev);
-		muic_notifier.cxt.cable_type = cur_dev % ATTACHED_DEV_NUM;
-#endif
-	}
 
 	if (muic_notifier.cxt.cable_type != ATTACHED_DEV_NONE_MUIC) {
 		/* muic's attached_device detach broadcast */
@@ -244,37 +171,21 @@ void muic_notifier_detach_attached_dev(muic_attached_dev_t cur_dev)
 	}
 
 	__set_noti_cxt(0, ATTACHED_DEV_NONE_MUIC);
-
-#if defined(CONFIG_USE_SECOND_MUIC) 
-	mutex_unlock(&muic_notifier.mutex);
-#endif
 }
 
 void muic_notifier_logically_attach_attached_dev(muic_attached_dev_t new_dev)
 {
 	pr_info("%s: (%d)\n", __func__, new_dev);
 
-#if defined(CONFIG_USE_SECOND_MUIC)
-	mutex_lock(&muic_notifier.mutex);
-#endif
-
 	__set_noti_cxt(MUIC_NOTIFY_CMD_ATTACH, new_dev);
 
 	/* muic's attached_device attach broadcast */
 	muic_notifier_notify();
-
-#if defined(CONFIG_USE_SECOND_MUIC)
-	mutex_unlock(&muic_notifier.mutex);
-#endif
 }
 
 void muic_notifier_logically_detach_attached_dev(muic_attached_dev_t cur_dev)
 {
 	pr_info("%s: (%d)\n", __func__, cur_dev);
-
-#if defined(CONFIG_USE_SECOND_MUIC)
-	mutex_lock(&muic_notifier.mutex);
-#endif
 
 	__set_noti_cxt(MUIC_NOTIFY_CMD_DETACH, cur_dev);
 
@@ -282,10 +193,6 @@ void muic_notifier_logically_detach_attached_dev(muic_attached_dev_t cur_dev)
 	muic_notifier_notify();
 
 	__set_noti_cxt(0, ATTACHED_DEV_NONE_MUIC);
-
-#if defined(CONFIG_USE_SECOND_MUIC)
-	mutex_unlock(&muic_notifier.mutex);
-#endif
 }
 #ifdef CONFIG_CCIC_NOTIFIER
 extern int ccic_notifier_init(void);
@@ -300,10 +207,7 @@ static int __init muic_notifier_init(void)
 
 	pr_info("%s\n", __func__);
 
-#if defined(CONFIG_DRV_SAMSUNG)
 	switch_device = sec_device_create(NULL, "switch");
-#endif
-
 	if (IS_ERR(switch_device)) {
 		pr_err("(%s): failed to created device (switch_device)!\n",
 				__func__);
@@ -322,10 +226,7 @@ static int __init muic_notifier_header_init(void)
 #if defined(CONFIG_MUIC_SUPPORT_CCIC) && \
 		defined(CONFIG_CCIC_NOTIFIER)
 	muic_uses_new_noti = 1;
-#endif
 
-#if defined(CONFIG_USE_SECOND_MUIC)
-	mutex_init(&muic_notifier.mutex);
 #endif
 	if (!notifier_head_init) {
 		BLOCKING_INIT_NOTIFIER_HEAD(&(muic_notifier.notifier_call_chain));
@@ -336,4 +237,5 @@ static int __init muic_notifier_header_init(void)
 	return ret;
 }
 subsys_initcall(muic_notifier_header_init);
+
 

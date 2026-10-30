@@ -12,14 +12,6 @@ config CCIC_NOTIFIER
 	  If you say yes here you will get support for
 	  the CCIC attached device status change notification.
 
-config CCIC_S2MM003
-	bool "CCIC S2MM003"
-	depends on I2C
-	default n
-	help
-	  If you say yes here you will get support for
-	  s2mm003 ccic full version chipset
-
 config CCIC_S2MM005
 	bool "CCIC S2MM005"
 	depends on I2C
@@ -67,28 +59,3 @@ config CCIC_WATER_DETECT
 	help
 	  If you say yes here you will get support for
 	  water detect Enable
-
-config PDIC_PD30
-	bool "support PD30"
-	depends on CCIC_MAX77705
-	default n
-	help
-	  If you say yes here you will get support for PD30
-
-config MAX77705_GRL_ENABLE
-	bool "support Eye Diagram"
-	depends on CCIC_MAX77705
-	default n
-	help
-	  If you say yes here you will get support for Eye Diagram
-	  This isn't needed for MAX77705C(MD15)	
-
-config CC_ATTACH_LOG
-	bool "cc attach detach log"
-	depends on CCIC_MAX77705
-	default n
-	help
-	  write cc attach time. 
-	  If detach - attach irq is repeated during specific time
-          we will report abnormal state.
-          We can define specific duration and specific repeat times.

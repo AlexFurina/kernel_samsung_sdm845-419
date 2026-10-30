@@ -11,12 +11,30 @@
  */
 
 #include "include/sec_adc.h"
+#include <linux/iio/consumer.h>
 
 #define DEBUG
 
+
+#define WPC_TEMP_70_DEGREE_VOL 224000
+#define WPC_TEMP_85_DEGREE_VOL 152000
+/* Need 1 degree margin adc variatoin */
+#define WPC_HIGH_THR_TEMP 850
+#define WPC_LOW_THR_TEMP 710
+#define WPC_HIGH_THR_TEMP_VOL WPC_TEMP_85_DEGREE_VOL
+#define WPC_LOW_THR_TEMP_VOL WPC_TEMP_70_DEGREE_VOL
+#define WPC_TEMP_HIGH_STATE ADC_TM_LOW_STATE
+#define WPC_TEMP_LOW_STATE ADC_TM_HIGH_STATE
+#define WPC_HIGH_TEMP_INT_ENABLE ADC_TM_LOW_THR_ENABLE
+#define WPC_LOW_TEMP_INT_ENABLE ADC_TM_HIGH_THR_ENABLE
+#define WPC_HIGH_LOW_TEMP_INT_ENABLE ADC_TM_HIGH_LOW_THR_ENABLE
+
+static struct qpnp_adc_tm_btm_param	adc_param;
+
 struct adc_list {
 	const char *name;
-	struct iio_channel *channel;
+	struct iio_channel *chan;
+	int channel;
 	bool is_used;
 	int prev_value;
 };
@@ -25,7 +43,7 @@ static struct adc_list batt_adc_list[SEC_BAT_ADC_CHANNEL_NUM] = {
 	{.name = "adc-cable"},
 	{.name = "adc-bat"},
 	{.name = "adc-temp"},
-	{.name = "adc-temp-amb"},
+	{.name = "adc-temp"},
 	{.name = "adc-full"},
 	{.name = "adc-volt"},
 	{.name = "adc-chg-temp"},
@@ -35,57 +53,145 @@ static struct adc_list batt_adc_list[SEC_BAT_ADC_CHANNEL_NUM] = {
 	{.name = "adc-wpc-temp"},
 	{.name = "adc-slave-chg-temp"},
 	{.name = "adc-usb-temp"},
-	{.name = "adc-sub-bat"},
-	{.name = "adc-blkt-temp"},
 };
 
-#ifdef CONFIG_SEC_EXT_THERMAL_MONITOR
-static struct sec_battery_info *local_battery;
-#endif /* CONFIG_SEC_EXT_THERMAL_MONITOR */
+static void btm_notification(enum qpnp_tm_state state, void *ctx)
+{
+	int rc;
+	struct sec_battery_info *battery = ctx;
+
+	if (state >= ADC_TM_STATE_NUM) {
+		pr_err("invalid state parameter %d\n", state);
+		return;
+	}
+
+	/* read temperature */
+	wake_lock(&battery->monitor_wake_lock);
+	queue_delayed_work(battery->monitor_wqueue, &battery->monitor_work, 0);
+	pr_info("%s: wpc temp = %d, chg temp = %d\n",
+			__func__, battery->wpc_temp, battery->chg_temp);
+
+	/* check thermal state */
+	switch (state) {
+	case WPC_TEMP_HIGH_STATE:
+		if (battery->wpc_temp >= WPC_HIGH_THR_TEMP)
+			adc_param.state_request = WPC_LOW_TEMP_INT_ENABLE;
+
+		pr_err("%s: wpc temperature meet high threshold\n", __func__);
+		break;
+	case WPC_TEMP_LOW_STATE:
+		adc_param.state_request = WPC_HIGH_TEMP_INT_ENABLE;
+		pr_err("%s: wpc temperature meet low threshold\n", __func__);
+		break;
+	default:
+		pr_err("%s: wpc temperature is unknown state(=%d)\n",
+							__func__, state);
+		break;
+	}
+
+	rc = qpnp_adc_tm_channel_measure(battery->adc_tm_dev, &adc_param);
+	if (rc)
+		pr_err("requesting BTM failed(=%d)\n", rc);
+	else
+		pr_err("%s: high temp = %d, low_temp = %d, state_request = %d\n",
+			__func__, adc_param.low_thr, adc_param.high_thr,
+			adc_param.state_request);
+}
+
+void btm_init(struct sec_battery_info *battery)
+{
+	int rc;
+
+	if (!battery->adc_tm_dev)
+		return;
+
+	adc_param.low_thr = WPC_HIGH_THR_TEMP_VOL;
+	adc_param.high_thr = WPC_LOW_THR_TEMP_VOL;
+	adc_param.state_request = WPC_HIGH_TEMP_INT_ENABLE;
+	adc_param.timer_interval = ADC_MEAS1_INTERVAL_1S;
+	adc_param.btm_ctx = battery;
+	adc_param.threshold_notification = btm_notification;
+	adc_param.channel = VADC_AMUX3_GPIO_PU2;
+
+	rc = qpnp_adc_tm_channel_measure(battery->adc_tm_dev, &adc_param);
+	if (rc)
+		pr_err("requesting BTM failed(=%d)\n", rc);
+	else
+		pr_err("%s: high temp = %d, low_temp = %d, state_request = %d\n",
+			__func__, adc_param.low_thr, adc_param.high_thr,
+			adc_param.state_request);
+}
+
+static struct iio_channel *sec_bat_get_iio_chan(struct sec_battery_info *battery,
+		int channel)
+{
+	struct adc_list *adc = &batt_adc_list[channel];
+	struct iio_channel *chan;
+
+	if (adc->chan)
+		return adc->chan;
+
+	chan = iio_channel_get(battery->dev, adc->name);
+	if (IS_ERR(chan)) {
+		if (PTR_ERR(chan) != -EPROBE_DEFER)
+			pr_err_ratelimited("%s: no iio channel %s (%ld)\n",
+				__func__, adc->name, PTR_ERR(chan));
+		return NULL;
+	}
+
+	adc->chan = chan;
+	adc->is_used = true;
+	return chan;
+}
 
 static void sec_bat_adc_ap_init(struct platform_device *pdev,
 		struct sec_battery_info *battery)
 {
-	int i = 0;
-	struct iio_channel *temp_adc;
+	int i;
 
 	for (i = 0; i < SEC_BAT_ADC_CHANNEL_NUM; i++) {
-		temp_adc = iio_channel_get(&pdev->dev, batt_adc_list[i].name);
-		batt_adc_list[i].channel = temp_adc;
-		batt_adc_list[i].is_used = !IS_ERR_OR_NULL(temp_adc);
+		batt_adc_list[i].prev_value = -1;
+		sec_bat_get_iio_chan(battery, i);
 	}
 
-	for (i  = 0; i < SEC_BAT_ADC_CHANNEL_NUM; i++)
-		pr_info("%s %s - %s\n",
-			__func__, batt_adc_list[i].name, batt_adc_list[i].is_used ? "used" : "not used");
+	for (i = 0; i < SEC_BAT_ADC_CHANNEL_NUM; i++)
+		pr_info("%s %s - %s\n", __func__, batt_adc_list[i].name,
+			batt_adc_list[i].is_used ? "used" : "not used");
 }
 
 static int sec_bat_adc_ap_read(struct sec_battery_info *battery, int channel)
 {
-	int data = -1;
-	int ret = 0;
+	struct iio_channel *chan = sec_bat_get_iio_chan(battery, channel);
+	int ret = 0, val = 0;
 	int retry_cnt = RETRY_CNT;
 
-	if (batt_adc_list[channel].is_used) {
-		do {
-			ret = (batt_adc_list[channel].is_used) ?
-			iio_read_channel_processed(batt_adc_list[channel].channel, &data) : 0;
-			retry_cnt--;
-		} while ((retry_cnt > 0) && (data < 0));
+	if (!chan)
+		return -1;
+
+	do {
+		ret = iio_read_channel_raw(chan, &val);
+		retry_cnt--;
+	} while ((retry_cnt > 0) && ret < 0);
+
+	if (ret < 0) {
+		pr_err("%s: Error in ADC(%d) ret(%d)\n", __func__, channel, ret);
+		return batt_adc_list[channel].prev_value;
 	}
 
-	if (retry_cnt <= 0) {
-		pr_err("%s: Error in ADC\n", __func__);
-		data = batt_adc_list[channel].prev_value;
-	} else
-		batt_adc_list[channel].prev_value = data;
-
-	return data;
+	batt_adc_list[channel].prev_value = val;
+	return val;
 }
 
 static void sec_bat_adc_ap_exit(void)
 {
-	return;
+	int i;
+
+	for (i = 0; i < SEC_BAT_ADC_CHANNEL_NUM; i++) {
+		if (batt_adc_list[i].chan) {
+			iio_channel_release(batt_adc_list[i].chan);
+			batt_adc_list[i].chan = NULL;
+		}
+	}
 }
 
 static void sec_bat_adc_none_init(struct platform_device *pdev)
@@ -260,8 +366,7 @@ int sec_bat_get_charger_type_adc
 bool sec_bat_get_value_by_adc(
 				struct sec_battery_info *battery,
 				enum sec_battery_adc_channel channel,
-				union power_supply_propval *value,
-				enum sec_battery_temp_check check_type)
+				union power_supply_propval *value)
 {
 	int temp = 0;
 	int temp_adc;
@@ -270,11 +375,6 @@ bool sec_bat_get_value_by_adc(
 	int mid = 0;
 	const sec_bat_adc_table_data_t *temp_adc_table = {0 , };
 	unsigned int temp_adc_table_size = 0;
-
-	if (check_type == SEC_BATTERY_TEMP_CHECK_FAKE) {
-		value->intval = 300;
-		return true;
-	}
 
 	temp_adc = sec_bat_get_adc_data(battery, channel, battery->pdata->adc_check_count);
 	if (temp_adc < 0)
@@ -305,29 +405,18 @@ bool sec_bat_get_value_by_adc(
 		battery->pdata->chg_temp_adc_table_size;
 		battery->chg_temp_adc = temp_adc;
 		break;
-	case SEC_BAT_ADC_CHANNEL_WPC_TEMP:
+	case SEC_BAT_ADC_CHANNEL_WPC_TEMP: /* Coil Therm */
 		temp_adc_table = battery->pdata->wpc_temp_adc_table;
 		temp_adc_table_size =
 			battery->pdata->wpc_temp_adc_table_size;
 		battery->wpc_temp_adc = temp_adc;
+		battery->coil_temp_adc = temp_adc;
 		break;
 	case SEC_BAT_ADC_CHANNEL_SLAVE_CHG_TEMP:
 		temp_adc_table = battery->pdata->slave_chg_temp_adc_table;
 		temp_adc_table_size =
 			battery->pdata->slave_chg_temp_adc_table_size;
 		battery->slave_chg_temp_adc = temp_adc;
-		break;
-	case SEC_BAT_ADC_CHANNEL_SUB_BAT_TEMP:
-		temp_adc_table = battery->pdata->sub_bat_temp_adc_table;
-		temp_adc_table_size =
-			battery->pdata->sub_bat_temp_adc_table_size;
-		battery->sub_bat_temp_adc = temp_adc;
-		break;		
-	case SEC_BAT_ADC_CHANNEL_BLKT_TEMP:
-		temp_adc_table = battery->pdata->blkt_temp_adc_table;
-		temp_adc_table_size =
-			battery->pdata->blkt_temp_adc_table_size;
-		battery->blkt_temp_adc = temp_adc;
 		break;
 	default:
 		dev_err(battery->dev,
@@ -365,155 +454,12 @@ bool sec_bat_get_value_by_adc(
 temp_by_adc_goto:
 	value->intval = temp;
 
-	dev_dbg(battery->dev,
+	dev_info(battery->dev,
 		"%s:[%d] Temp(%d), Temp-ADC(%d)\n",
 		__func__,channel, temp, temp_adc);
 
 	return true;
 }
-
-#ifdef CONFIG_SEC_EXT_THERMAL_MONITOR
-int sec_bat_convert_adc_to_temp(unsigned int adc_ch, int temp_adc)
-{
-	enum sec_battery_adc_channel channel = 0;
-	int temp = 25000;
-	int low = 0;
-	int high = 0;
-	int mid = 0;
-	const sec_bat_adc_table_data_t *temp_adc_table = {0 , };
-	unsigned int temp_adc_table_size = 0;
-
-	if(!local_battery) {
-		pr_info("%s: battery data is not ready yet\n", __func__);
-		goto temp_to_adc_goto;
-	}
-
-	if (adc_ch == 0x4d &&
-		local_battery->pdata->usb_thermal_source == SEC_BATTERY_THERMAL_SOURCE_ADC)
-		channel = SEC_BAT_ADC_CHANNEL_USB_TEMP;
-	else if (adc_ch == 0x52 &&
-		local_battery->pdata->thermal_source == SEC_BATTERY_THERMAL_SOURCE_ADC)
-		channel = SEC_BAT_ADC_CHANNEL_TEMP;
-	else
-		goto temp_to_adc_goto;
-
-	switch (channel) {
-	case SEC_BAT_ADC_CHANNEL_USB_TEMP:
-		temp_adc_table = local_battery->pdata->usb_temp_adc_table;
-		temp_adc_table_size =
-			local_battery->pdata->usb_temp_adc_table_size;
-		break;
-	case SEC_BAT_ADC_CHANNEL_TEMP:
-		temp_adc_table = local_battery->pdata->temp_adc_table;
-		temp_adc_table_size =
-			local_battery->pdata->temp_adc_table_size;
-		break;
-	default:
-		dev_err(local_battery->dev,
-			"%s: Invalid Property\n", __func__);
-		goto temp_to_adc_goto;
-	}
-
-	if (temp_adc_table[0].adc >= temp_adc) {
-		temp = temp_adc_table[0].data;
-		goto temp_to_adc_goto;
-	} else if (temp_adc_table[temp_adc_table_size-1].adc <= temp_adc) {
-		temp = temp_adc_table[temp_adc_table_size-1].data;
-		goto temp_to_adc_goto;
-	}
-
-	high = temp_adc_table_size - 1;
-
-	while (low <= high) {
-		mid = (low + high) / 2;
-		if (temp_adc_table[mid].adc > temp_adc)
-			high = mid - 1;
-		else if (temp_adc_table[mid].adc < temp_adc)
-			low = mid + 1;
-		else {
-			temp = temp_adc_table[mid].data;
-			goto temp_to_adc_goto;
-		}
-	}
-
-	temp = temp_adc_table[high].data;
-	temp += ((temp_adc_table[low].data - temp_adc_table[high].data) *
-		 (temp_adc - temp_adc_table[high].adc)) /
-		(temp_adc_table[low].adc - temp_adc_table[high].adc);
-
-temp_to_adc_goto:
-	return (temp == 25000 ? temp : temp * 100);
-}
-EXPORT_SYMBOL(sec_bat_convert_adc_to_temp);
-
-int sec_bat_get_thr_voltage(unsigned int adc_ch, int temp)
-{
-	enum sec_battery_adc_channel channel = 0;
-	int volt = 0;
-	int low = 0;
-	int high = 0;
-	int mid = 0;
-	const sec_bat_adc_table_data_t *temp_adc_table = {0 , };
-	unsigned int temp_adc_table_size = 0;
-
-	if(!local_battery) {
-		pr_info("%s: battery data is not ready yet\n", __func__);
-		goto get_thr_voltage_goto;
-	}
-
-	if (adc_ch == 0x4d &&
-		local_battery->pdata->usb_thermal_source == SEC_BATTERY_THERMAL_SOURCE_ADC)
-		channel = SEC_BAT_ADC_CHANNEL_USB_TEMP;
-	else if (adc_ch == 0x52 &&
-		local_battery->pdata->thermal_source == SEC_BATTERY_THERMAL_SOURCE_ADC)
-		channel = SEC_BAT_ADC_CHANNEL_TEMP;
-	else
-		goto get_thr_voltage_goto;
-
-	switch (channel) {
-	case SEC_BAT_ADC_CHANNEL_USB_TEMP:
-		temp_adc_table = local_battery->pdata->usb_temp_adc_table;
-		temp_adc_table_size =
-			local_battery->pdata->usb_temp_adc_table_size;
-		break;
-	case SEC_BAT_ADC_CHANNEL_TEMP:
-		temp_adc_table = local_battery->pdata->temp_adc_table;
-		temp_adc_table_size =
-			local_battery->pdata->temp_adc_table_size;
-		break;
-	default:
-		dev_err(local_battery->dev,
-			"%s: Invalid Property\n", __func__);
-		goto get_thr_voltage_goto;
-	}
-
- 	if (temp > 900 || temp < -200) {
-		dev_err(local_battery->dev,
-			"%s: unsupported temperature\n", __func__);
-		goto get_thr_voltage_goto;
-	}
-
-	high = temp_adc_table_size - 1;
-
-	while (low <= high) {
-		mid = (low + high) / 2;
-		if (temp_adc_table[mid].data < temp)
-			high = mid - 1;
-		else if (temp_adc_table[mid].data > temp)
-			low = mid + 1;
-		else {
-			volt = temp_adc_table[mid].adc / 1000;
-			goto get_thr_voltage_goto;
-		}
-	}
-
-	volt = temp_adc_table[mid].adc / 1000;
-
-get_thr_voltage_goto:
-	return volt;
-}
-EXPORT_SYMBOL(sec_bat_get_thr_voltage);
-#endif /* CONFIG_SEC_EXT_THERMAL_MONITOR */
 
 bool sec_bat_check_vf_adc(struct sec_battery_info *battery)
 {
@@ -538,73 +484,10 @@ bool sec_bat_check_vf_adc(struct sec_battery_info *battery)
 	}
 }
 
-#if defined(CONFIG_DIRECT_CHARGING)
-int sec_bat_get_direct_chg_temp_adc(struct sec_battery_info *battery,
-			int adc_data, int count)
-{
-	int temp = 0;
-	int temp_adc = 0;
-	int low = 0;
-	int high = 0;
-	int mid = 0;
-	const sec_bat_adc_table_data_t *temp_adc_table = {0 , };
-	unsigned int temp_adc_table_size = 0;
-
-	if (battery->pdata->dchg_temp_check_type == SEC_BATTERY_TEMP_CHECK_FAKE) {
-		temp = 300;
-		goto direct_chg_temp_goto;
-	}
-
-	temp_adc = adc_data;
-	if (temp_adc < 0)
-		return 0;
-
-	temp_adc_table = battery->pdata->dchg_temp_adc_table;
-	temp_adc_table_size =
-		battery->pdata->dchg_temp_adc_table_size;
-	battery->dchg_temp_adc = temp_adc;
-
-	if (temp_adc_table[0].adc >= temp_adc) {
-			temp = temp_adc_table[0].data;
-			goto direct_chg_temp_goto;
-	} else if (temp_adc_table[temp_adc_table_size-1].adc <= temp_adc) {
-		temp = temp_adc_table[temp_adc_table_size-1].data;
-		goto direct_chg_temp_goto;
-	}
-	
-	high = temp_adc_table_size - 1;
-	while (low <= high) {
-		mid = (low + high) / 2;
-		if (temp_adc_table[mid].adc > temp_adc)
-			high = mid - 1;
-		else if (temp_adc_table[mid].adc < temp_adc)
-			low = mid + 1;
-		else {
-			temp = temp_adc_table[mid].data;
-			goto direct_chg_temp_goto;
-		}
-	}
-
-	temp = temp_adc_table[high].data;
-	temp += ((temp_adc_table[low].data - temp_adc_table[high].data) *
-		 (temp_adc - temp_adc_table[high].adc)) /
-		(temp_adc_table[low].adc - temp_adc_table[high].adc);
-
-direct_chg_temp_goto:
-	dev_info(battery->dev,
-			"%s: temp(%d), direct-chg-temp-ADC(%d)\n",
-			__func__, temp, temp_adc);
-
-	return temp;
-}
-#endif
-
 void adc_init(struct platform_device *pdev, struct sec_battery_info *battery)
 {
 	adc_init_type(pdev, battery);
-#ifdef CONFIG_SEC_EXT_THERMAL_MONITOR
-	local_battery = battery;
-#endif /* CONFIG_SEC_EXT_THERMAL_MONITOR */
+	btm_init(battery);
 }
 
 void adc_exit(struct sec_battery_info *battery)

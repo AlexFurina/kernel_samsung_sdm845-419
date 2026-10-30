@@ -159,7 +159,6 @@
 /*
  * REG_CC_STATUS2
  */
-#define BIT_CCSBUSHORT			BITS(7, 6)
 #define BIT_VCONNOCP			BIT(5)
 #define BIT_VCONNSC				BIT(4)
 #define BIT_VSAFE0V				BIT(3)
@@ -178,23 +177,6 @@
 #define BIT_PD_DataRole			BIT(7)
 #define BIT_PD_PSRDY			BIT(4)
 #define BIT_FCT_ID				BITS(3, 0)
-
-
-/** opcode reg **/
-
-/*
- * CC Control1 Write
- */
-#define BIT_CCSrcCurCh			BIT(7)
-#define BIT_CCSrcCur			BITS(6, 5)
-#define BIT_CCSrcSnk			BIT(4)
-#define BIT_CCSnkSrc			BIT(3)
-#define BIT_CCDbgEn				BIT(2)
-#define BIT_CCAudEn				BIT(1)
-#define BIT_CCDetEn				BIT(0)
-
-
-
 
 /*
  * max77766 role
@@ -227,22 +209,20 @@ enum max77705_vcon_role {
 #define FW_VERIFY_DATA_SIZE 3
 
 #define FW_VERIFY_TRY_COUNT 10
-#define FW_SECURE_MODE_TRY_COUNT 10
 
 #define FW_WAIT_TIMEOUT			(1000 * 5) /* 5 sec */
 #define I2C_SMBUS_BLOCK_HALF	(I2C_SMBUS_BLOCK_MAX / 2)
 
-#define GET_CONTROL3_LOCK_ERROR_EN(_x)		((_x & (0x1 << 1)) >> 1)
-
-typedef struct {
-	u32 magic;     /* magic number */
-	u8 major;         /* major version */
-	u8 minor:3;       /* minor version */
-	u8 product_id:5;  /* product id */
-	u8 id;            /* id */
-	u8 rev;           /* rev */
-} max77705_fw_header;
-#define MAX77705_SIGN 0xCEF166C1
+struct max77705_fw_header {
+	u8 data0;
+	u8 data1;
+	u8 data2;
+	u8 data3;
+	u8 data4; /* FW version LSB */
+	u8 data5;
+	u8 data6;
+	u8 data7; /* FW version MSB */
+};
 
 enum {
 	FW_UPDATE_START = 0x00,
@@ -397,30 +377,10 @@ enum max77705_usbc_SYSMsg {
 	SYSMSG_CCx_5V_SHORT = 0x61,
 	SYSMSG_SBUx_GND_SHORT = 0x62,
 	SYSMSG_SBUx_5V_SHORT = 0x63,
-#ifdef MAX77705_GRL_ENABLE
+
 	SYSMSG_SET_GRL = 0x64,
-#endif
-	SYSMSG_PD_CCx_5V_SHORT = 0x65,
-	SYSMSG_PD_SBUx_5V_SHORT = 0x66,
-	SYSMSG_PD_SHORT_NONE = 0x67,
-
-	SYSERROR_DROP5V_SRCRDY = 0x68,
-	SYSERROR_DROP5V_SNKRDY = 0x69,
-	SYSMSG_PD_GENDER_SHORT = 0x6A,
-
 	SYSERROR_FACTORY_RID0 = 0x70,
 	SYSERROR_POWER_NEGO = 0x80,
-	SYSERROR_CCRP_HIGH = 0x90, /* PD Charger Connected while Water state */
-	SYSERROR_CCRP_LOW = 0x91, /* PD Charger Disconnected while Water state */
-
-	/* TypeC earphone is attached during PD charging */
-	SYSMSG_10K_TO_22K = 0xB0,
-	SYSMSG_10K_TO_56K = 0xB1,
-	SYSMSG_22K_TO_56K = 0xB2,
-	/* TypeC earphone is detached during PD charging */
-	SYSMSG_56K_TO_22K = 0xB3,
-	SYSMSG_56K_TO_10K = 0xB4,
-	SYSMSG_22K_TO_10K = 0xB5,
 };
 
 enum max77705_pdmsg {
@@ -454,7 +414,6 @@ enum max77705_pdmsg {
 
 	Sink_PD_Disabled = 0x20,
 	Source_PD_Disabled = 0x21,
-	Current_Cable_Connected = 0x22,
 
 	Get_Source_Capabilities_Extended_Received = 0x30,
 	Get_Status_Received = 0x31,
@@ -466,7 +425,6 @@ enum max77705_pdmsg {
 	Battery_Capabilities_Received = 0x37,
 	Battery_Status_Received = 0x38,
 	Manufacturer_Info_Received = 0x39,
-	Alert_Message = 0x3e,
 	VDM_NAK_Recevied = 0x40,
 	VDM_BUSY_Recevied = 0x41,
 	VDM_ACK_Recevied = 0x42,
@@ -517,6 +475,7 @@ enum max77705_connstat {
 #define OPCODE_PUSH_SEQ 0x4
 #define OPCODE_UPDATE_SEQ 0x5
 
+
 typedef enum {
 	OPCODE_BCCTRL1_R = 0x01,
 	OPCODE_BCCTRL1_W,
@@ -544,12 +503,9 @@ typedef enum {
 	OPCODE_CHGIN_ILIM2_W,
 	OPCODE_CTRLREG_INIT_R = 0x1A,
 	OPCODE_CTRLREG_INIT_W,
-	OPCODE_CTRLREG3_R = 0x1C,
-	OPCODE_CTRLREG3_W = 0x1D,
 	OPCODE_AFC_HV_W = 0x20,
 	OPCODE_AFC_RESULT_R,
 	OPCODE_QC2P0_SET = 0x22,
-	OPCODE_SET_SNKCAP = 0x2E,
 	OPCODE_READ_SBU = 0x25,
 	OPCODE_CURRENT_SRCCAP = 0x30,
 	OPCODE_GET_SRCCAP = 0x31,
@@ -560,9 +516,6 @@ typedef enum {
 	OPCODE_SEND_GET_RESPONSE = 0x36,
 	OPCODE_SWAP_REQUEST = 0x37,
 	OPCODE_SWAP_REQUEST_RESPONSE = 0x38,
-	OPCODE_APDO_SRCCAP_REQUEST = 0x3A,
-	OPCODE_GET_PPS_STATUS = 0x3B,
-	OPCODE_SET_PPS = 0x3C,
 	OPCODE_VDM_DISCOVER_IDENETITY_RESPONSE = 0x40,
 	OPCODE_VDM_DISCOVER_SET_VDM_REQ = 0x48,
 	OPCODE_VDM_DISCOVER_GET_VDM_RESP = 0x4b,
@@ -571,17 +524,9 @@ typedef enum {
 	OPCODE_SAMSUNG_ACC_COMMAND_RECIEVED,
 	OPCODE_SAMSUNG_ACC_COMMAND_RESPOND,
 	OPCODE_SAMSUNG_SECURE_KEY_REVOCATION,
-	OPCODE_SAMSUNG_FACTORY_TEST = 0x54,
-	OPCODE_SET_ALTERNATEMODE = 0x55,
 	OPCODE_SAMSUNG_FW_AUTOIBUS = 0x57,
 	OPCODE_READ_SELFTEST = 0x59,
-	OPCODE_SAMSUNG_GPIO5_CONTROL = 0x5B,
-	OPCODE_SAMSUNG_READ_MESSAGE = 0x5D,
-#ifdef MAX77705_GRL_ENABLE
 	OPCODE_GRL_COMMAND = 0x70,
-#else
-	OPCODE_FW_OPCODE_CLEAR = 0x70,
-#endif
 	OPCODE_RAM_TEST_COMMAND = 0xD1,
 	OPCODE_NONE = 0xff,
 } max77705_opcode_list;
@@ -612,13 +557,5 @@ typedef enum {
 /* SAMSUNG OPCODE */
 #define REG_NONE 0xff
 #define CCIC_IRQ_INIT_DETECT		(-1)
-
-#define MINOR_VERSION_MASK 0b00000111
-
-/* PRODUCT ID  */
-#define FW_PRODUCT_ID_REG 3
-//#define STAR_PRODUCT_ID 0b0000
-//#define Lykan_PRODUCT_ID 0b0001
-//#define BEYOND_PRODUCT_ID 0b0010
 #endif
 
