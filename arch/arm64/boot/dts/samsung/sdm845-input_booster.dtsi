@@ -10,183 +10,354 @@
  * GNU General Public License for more details.
  */
 
-/{
+&soc {
 	input_booster {
 		status = "okay";
 		compatible = "input_booster";
+		resValcount = "2";
+		max_resource_count = "4";
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		/* < CPU, DDR, HMP, LPM > */
+		ib_release_values = "-1,0,-2,0";
+
 		booster_key@1 {
-			input_booster,label = "KEY";
+			input_booster,label = "key";
 			input_booster,type = <0>;	/* BOOSTER_DEVICE_KEY */
 
-			input_booster,levels = <1>;
-
-			/* Frequency table */
-			/* for level	:	1_Head */
-			input_booster,cpu_freqs = <1132800>;
-			input_booster,hmp_boost = <2>;
-			input_booster,ddr_freqs = <0>;
-			input_booster,lpm_bias = <0>;
-
 			/* Time table */
-			input_booster,head_times = <500>;
-			input_booster,tail_times = <500>;
+			input_booster,head_time = <500>;
+			input_booster,tail_time = <500>;
+
+			/* Resource Table Sequentially identified with index
+			 * CPU's ID & Index : 0
+			 * DDR's ID & Index : 1
+			 * HMP's ID & Index : 2
+			 * LPM's ID & Index : 3
+			*/
+
+			/* Input Booster Resource Frequency */
+			inputbooster,resource {
+				compatible = "resource";
+				resource@1 {
+					resource,label = "CPU";
+					resource,value = <1132800 0>;
+				};
+
+				resource@2 {
+					resource,label = "DDR";
+					resource,value = <0 0>;
+				};
+
+				resource@3 {
+					resource,label = "HMP";
+					resource,value = <2 0>;
+				};
+
+				resource@4 {
+					resource,label = "LPM";
+					resource,value = <0 0>;
+				};
+			};
 		};
+
 		booster_key@2 {
-			input_booster,label = "TOUCHKEY";
+			input_booster,label = "touchkey";
 			input_booster,type = <1>;	/* BOOSTER_DEVICE_TOUCHKEY */
 
-			input_booster,levels = <1>;
-
-			/* Frequency table */
-			/* for level	:	1_Head */
-			input_booster,cpu_freqs = <1132800>;
-			input_booster,hmp_boost = <2>;
-			input_booster,ddr_freqs = <0>;
-			input_booster,lpm_bias = <0>;
-
 			/* Time table */
-			input_booster,head_times = <0>;
-			input_booster,tail_times = <500>;
+			input_booster,head_time = <0>;
+			input_booster,tail_time = <500>;
+
+			/* Input Booster Resource Frequency */
+			inputbooster,resource {
+				compatible = "resource";
+				resource@1 {
+					resource,label = "CPU";
+					resource,value = <1132800 0>;
+				};
+
+				resource@2 {
+					resource,label = "DDR";
+					resource,value = <0 0>;
+				};
+
+				resource@3 {
+					resource,label = "HMP";
+					resource,value = <2 0>;
+				};
+
+				resource@4 {
+					resource,label = "LPM";
+					resource,value = <0 0>;
+				};
+			};
 		};
+
 		booster_key@3 {
-			input_booster,label = "TOUCH";
+			input_booster,label = "touch";
 			input_booster,type = <2>;	/* BOOSTER_DEVICE_TOUCH */
 
-			input_booster,levels = <1 2 3>;
-
-			/* Frequency table */
-			/* for level	:	1_Head, 2_Head, 2_Tail */
-			input_booster,cpu_freqs = <1132800 1132800 960000>;
-			input_booster,hmp_boost = <2 2 2>;
-			input_booster,ddr_freqs = <1017 1017 1017>;
-			input_booster,lpm_bias = <5 5 5>;
-
 			/* Time table */
-			input_booster,head_times = <200 200 0>;
-			input_booster,tail_times = <0 0 300>;
+			input_booster,head_time = <200>;
+			input_booster,tail_time = <300>;
+
+			/* Input Booster Resource Frequency */
+			inputbooster,resource {
+				compatible = "resource";
+				resource@1 {
+					resource,label = "CPU";
+					resource,value = <1171200 1075200>;
+				};
+
+				resource@2 {
+					resource,label = "DDR";
+					resource,value = <1017 1017>;
+				};
+
+				resource@3 {
+					resource,label = "HMP";
+					resource,value = <2 2>;
+				};
+
+				resource@4 {
+					resource,label = "LPM";
+					resource,value = <5 5>;
+				};
+			};
 		};
-		booster_key@4 { // Input Booster +
-			input_booster,label = "MULTITOUCH";
+
+		booster_key@4 {
+			input_booster,label = "multitouch";
 			input_booster,type = <3>;	/* BOOSTER_DEVICE_MULTITOUCH */
 
-			input_booster,levels = <1 2>;
-
-			/* Frequency table */
-			/* for level	:	1_Head 2_Tail*/
-			input_booster,cpu_freqs = <1958400 1344000>;
-			input_booster,hmp_boost = <2 2>;
-			input_booster,ddr_freqs = <0 0>;
-			input_booster,lpm_bias = <0 0>;
-
 			/* Time table */
-			input_booster,head_times = <200 0>;
-			input_booster,tail_times = <0 800>;
+			input_booster,head_time = <200>;
+			input_booster,tail_time = <800>;
+
+			/* Input Booster Resource Frequency */
+			inputbooster,resource {
+				compatible = "resource";
+				resource@1 {
+					resource,label = "CPU";
+					resource,value = <1977600 1401600>;
+				};
+
+				resource@2 {
+					resource,label = "DDR";
+					resource,value = <0 0>;
+				};
+
+				resource@3 {
+					resource,label = "HMP";
+					resource,value = <2 2>;
+				};
+
+				resource@4 {
+					resource,label = "LPM";
+					resource,value = <0 0>;
+				};
+			};
 		};
+
 		booster_key@5 {
-			input_booster,label = "KEYBOARD";
+			input_booster,label = "keyboard";
 			input_booster,type = <4>;	/* BOOSTER_DEVICE_KEYBOARD */
 
-			input_booster,levels = <1 2>;
-
-			/* Frequency table */
-			/* for level	:	1_Head 2_Tail*/
-			input_booster,cpu_freqs = <1132800 1132800>;
-			input_booster,hmp_boost = <2 2>;
-			input_booster,ddr_freqs = <0 0>;
-			input_booster,lpm_bias = <0 0>;
-
 			/* Time table */
-			input_booster,head_times = <130 130>;
-			input_booster,tail_times = <0 0>;
+			input_booster,head_time = <130>;
+			input_booster,tail_time = <0>;
+
+			/* Input Booster Resource Frequency */
+			inputbooster,resource {
+				compatible = "resource";
+				resource@1 {
+					resource,label = "CPU";
+					resource,value = <1132800 1132800>;
+				};
+
+				resource@2 {
+					resource,label = "DDR";
+					resource,value = <0 0>;
+				};
+
+				resource@3 {
+					resource,label = "HMP";
+					resource,value = <2 2>;
+				};
+
+				resource@4 {
+					resource,label = "LPM";
+					resource,value = <0 0>;
+				};
+			};
 		};
+
 		booster_key@6 {
-			input_booster,label = "MOUSE";
+			input_booster,label = "mouse";
 			input_booster,type = <5>;	/* BOOSTER_DEVICE_MOUSE */
 
-			input_booster,levels = <1 2>;
-
-			/* Frequency table */
-			/* for level	:	1_Head 2_Tail*/
-			input_booster,cpu_freqs = <1132800 489600>;
-			input_booster,hmp_boost = <2 0>;
-			input_booster,ddr_freqs = <0 0>;
-			input_booster,lpm_bias = <0 0>;
-
 			/* Time table */
-			input_booster,head_times = <200 0>;
-			input_booster,tail_times = <0 300>;
+			input_booster,head_time = <200>;
+			input_booster,tail_time = <300>;
+
+			/* Input Booster Resource Frequency */
+			inputbooster,resource {
+				compatible = "resource";
+				resource@1 {
+					resource,label = "CPU";
+					resource,value = <1132800 489600>;
+				};
+
+				resource@2 {
+					resource,label = "DDR";
+					resource,value = <0 0>;
+				};
+
+				resource@3 {
+					resource,label = "HMP";
+					resource,value = <2 0>;
+				};
+
+				resource@4 {
+					resource,label = "LPM";
+					resource,value = <0 0>;
+				};
+			};
 		};
+
 		booster_key@7 {
-			input_booster,label = "MOUSE WHEEL";
+			input_booster,label = "mouse_wheel";
 			input_booster,type = <6>;	/* BOOSTER_DEVICE_MOUSE */
 
-			input_booster,levels = <1 2>;
-
-			/* Frequency table */
-			/* for level	:	1_Head 2_Tail*/
-			input_booster,cpu_freqs = <1132800 0>;
-			input_booster,hmp_boost = <2 0>;
-			input_booster,ddr_freqs = <0 0>;
-			input_booster,lpm_bias = <0 0>;
-
 			/* Time table */
-			input_booster,head_times = <200 0>;
-			input_booster,tail_times = <0 0>;
+			input_booster,head_time = <200>;
+			input_booster,tail_time = <0>;
+
+			/* Input Booster Resource Frequency */
+			inputbooster,resource {
+				compatible = "resource";
+				resource@1 {
+					resource,label = "CPU";
+					resource,value = <1132800 0>;
+				};
+
+				resource@2 {
+					resource,label = "DDR";
+					resource,value = <0 0>;
+				};
+
+				resource@3 {
+					resource,label = "HMP";
+					resource,value = <2 0>;
+				};
+
+				resource@4 {
+					resource,label = "LPM";
+					resource,value = <0 0>;
+				};
+			};
 		};
+
 		booster_key@8 {
-			input_booster,label = "PEN HOVER";
+			input_booster,label = "pen_hover";
 			input_booster,type = <7>;	/* BOOSTER_DEVICE_MOUSE */
 
-			input_booster,levels = <1 2>;
-
-			/* Frequency table */
-			/* for level	:	1_Head 2_Tail*/
-			input_booster,cpu_freqs = <1132800 489600>;
-			input_booster,hmp_boost = <2 0>;
-			input_booster,ddr_freqs = <0 0>;
-			input_booster,lpm_bias = <0 0>;
-
 			/* Time table */
-			input_booster,head_times = <200 0>;
-			input_booster,tail_times = <0 300>;
-		}; // Input Booster -
+			input_booster,head_time = <200>;
+			input_booster,tail_time = <300>;
+
+			/* Input Booster Resource Frequency */
+			inputbooster,resource {
+				compatible = "resource";
+				resource@1 {
+					resource,label = "CPU";
+					resource,value = <1132800 489600>;
+				};
+
+				resource@2 {
+					resource,label = "DDR";
+					resource,value = <0 0>;
+				};
+
+				resource@3 {
+					resource,label = "HMP";
+					resource,value = <2 0>;
+				};
+
+				resource@4 {
+					resource,label = "LPM";
+					resource,value = <0 0>;
+				};
+			};
+		};
+
 		booster_key@9 {
-			input_booster,label = "PEN";
+			input_booster,label = "pen";
 			input_booster,type = <8>;	/* BOOSTER_DEVICE_MOUSE */
 
-			input_booster,levels = <1 2>;
-
-			/* Frequency table */
-			/* for level	:	1_Head 2_Tail*/
-			input_booster,cpu_freqs = <1574400 960000>;
-			input_booster,hmp_boost = <2 2>;
-			input_booster,ddr_freqs = <0 0>;
-			input_booster,lpm_bias = <0 0>;
-
 			/* Time table */
-			input_booster,head_times = <200 0>;
-			input_booster,tail_times = <0 600>;
-		}; // Input Booster -
+			input_booster,head_time = <200>;
+			input_booster,tail_time = <600>;
+
+			/* Input Booster Resource Frequency */
+			inputbooster,resource {
+				compatible = "resource";
+				resource@1 {
+					resource,label = "CPU";
+					resource,value = <1574400 960000>;
+				};
+
+				resource@2 {
+					resource,label = "DDR";
+					resource,value = <0 0>;
+				};
+
+				resource@3 {
+					resource,label = "HMP";
+					resource,value = <2 2>;
+				};
+
+				resource@4 {
+					resource,label = "LPM";
+					resource,value = <5 5>;
+				};
+			};
+		};
+
 		booster_key@10 {
-			input_booster,label = "KEY_TWO";
-			input_booster,type = <9>;	/* BOOSTER_DEVICE_KEY */
-
-			input_booster,levels = <1>;
-
-			/* Frequency table */
-			/* for level	:	1_Head */
-			input_booster,cpu_freqs = <1574400>;
-			input_booster,hmp_boost = <2>;
-			input_booster,ddr_freqs = <0>;
-			input_booster,lpm_bias = <0>;
+			input_booster,label = "key_two";
+			input_booster,type = <9>;	/* BOOSTER_DEVICE_MOUSE */
 
 			/* Time table */
-			input_booster,head_times = <700>;
-			input_booster,tail_times = <700>;
-		}; // Input Booster -
+			input_booster,head_time = <700>;
+			input_booster,tail_time = <700>;
+
+			/* Input Booster Resource Frequency */
+			inputbooster,resource {
+				compatible = "resource";
+				resource@1 {
+					resource,label = "CPU";
+					resource,value = <1574400 0>;
+				};
+
+				resource@2 {
+					resource,label = "DDR";
+					resource,value = <0 0>;
+				};
+
+				resource@3 {
+					resource,label = "HMP";
+					resource,value = <2 0>;
+				};
+
+				resource@4 {
+					resource,label = "LPM";
+					resource,value = <0 0>;
+				};
+			};
+		};
 		/* If you need to add new key type, add it this position */
 	};
 };
