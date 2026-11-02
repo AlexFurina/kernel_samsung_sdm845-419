@@ -49,6 +49,12 @@
 		muic,qc-hv = /bits/ 8 <0x9>;
 	};
 
+	usb_noti: usb-notifier {
+		compatible = "samsung,usb-notifier";
+		qcom,disable_control_en = <1>;
+		qcom,unsupport_host_en = <0>;
+	};
+
 	samsung,vibrator {
 		compatible = "samsung_vib";
 		pinctrl-names = "tlmm_motor_active","tlmm_motor_suspend";
