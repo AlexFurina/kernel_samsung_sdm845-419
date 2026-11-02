@@ -1378,7 +1378,7 @@ done:
 }
 
 #ifdef FEATURE_NFC_TEST
-static ssize_t pn547_class_show(struct class *class,
+static ssize_t test_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
 	int size;
@@ -1518,13 +1518,13 @@ fail_lock:
 	return ret;
 }
 
-static ssize_t pn547_class_store(struct class *class,
+static ssize_t test_store(struct class *class,
 	struct class_attribute *attr, const char *buf, size_t size)
 {
 	return size;
 }
 
-static CLASS_ATTR(test, 0664, pn547_class_show, pn547_class_store);
+static CLASS_ATTR_RW(test);
 #endif
 
 static ssize_t nfc_support_show(struct class *class,
@@ -1534,7 +1534,7 @@ static ssize_t nfc_support_show(struct class *class,
 	return 0;
 }
 
-static CLASS_ATTR(nfc_support, 0444, nfc_support_show, NULL);
+static CLASS_ATTR_RO(nfc_support);
 
 static int pn547_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
