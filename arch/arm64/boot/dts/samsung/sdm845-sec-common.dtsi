@@ -19,16 +19,6 @@
 	aliases {
 		hsuart8 = &qupv3_se9_2hsuart;
 	};
-
-	sec-debug {
-		crashkey,short = <KEY_VOLUMEDOWN KEY_POWER KEY_POWER>;
-		crashkey,long = <KEY_VOLUMEDOWN KEY_POWER>;
-	};
-
-	dev_ril_bridge_pdata {
-		compatible = "samsung,dev_ril_bridge_pdata";
-		status = "okay";
-	};
 };
 
 &soc {
