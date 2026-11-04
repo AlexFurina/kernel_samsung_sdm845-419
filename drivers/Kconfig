@@ -260,4 +260,6 @@ source "drivers/gator/Kconfig"
 source "drivers/kunit/Kconfig"
 
 source "drivers/spu_verify/Kconfig"
+
+source "drivers/nfc/samsung/Kconfig"
 endmenu
