@@ -52,8 +52,8 @@
 #define QUP_MASK       GENMASK(5, 0)
 
 #ifdef CONFIG_MST_LDO
-#define MST_GPIO_D_EN 42
-#define MST_GPIO_D_DATA 43
+#define MST_GPIO_D_EN 95
+#define MST_GPIO_D_DATA 96
 #endif
 
 /**
