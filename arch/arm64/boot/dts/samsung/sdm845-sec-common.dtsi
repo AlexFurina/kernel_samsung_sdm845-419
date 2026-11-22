@@ -91,6 +91,15 @@
 		status = "okay";
 	};
 
+	samsung,subsystem-sleep-debug {
+		compatible = "samsung,subsystem-sleep-debug";
+		subsystem-debug,adsp-error-max = <10000>;
+		subsystem-debug,adsp-fatal-max = <10000>;
+		subsystem-debug,adsp-ssr-enable;
+		subsystem-debug,slpi-error-max = <1000>;
+		subsystem-debug,slpi-fatal-max = <1000>;
+	};
+
 	qcom,memshare {
 		compatible = "qcom,memshare";
 
