@@ -43,7 +43,8 @@ static inline void wake_lock_init(struct wake_lock *lock, int type,
 
 static inline void wake_lock_destroy(struct wake_lock *lock)
 {
-	wakeup_source_remove(lock->ws);
+	wakeup_source_unregister(lock->ws);
+	lock->ws = NULL;
 }
 
 static inline void wake_lock(struct wake_lock *lock)
@@ -63,7 +64,7 @@ static inline void wake_unlock(struct wake_lock *lock)
 
 static inline int wake_lock_active(struct wake_lock *lock)
 {
-	return lock->ws->active;
+	return lock->ws && lock->ws->active;
 }
 
 #endif

@@ -70,6 +70,9 @@
 #define PCIE20_PARF_INT_ALL_MASK (0x22c)
 #define PCIE20_PARF_DEVICE_TYPE (0x1000)
 #define PCIE20_PARF_BDF_TO_SID_TABLE_N (0x2000)
+#define PCIE20_PARF_SID_OFFSET (0x234)
+#define PCIE20_PARF_BDF_TRANSLATE_CFG (0x24c)
+#define PCIE20_PARF_BDF_TRANSLATE_N (0x250)
 #define PCIE20_PARF_L1SUB_AHB_CLK_MAX_TIMER (0x180)
 #define PCIE20_PARF_DEBUG_INT_EN (0x190)
 
@@ -5196,6 +5199,20 @@ static void msm_pcie_config_sid(struct msm_pcie_dev_t *dev)
 
 	if (!dev->sid_info)
 		return;
+
+	if (resource_size(dev->res[MSM_PCIE_RES_PARF].resource) <
+	    PCIE20_PARF_BDF_TO_SID_TABLE_N +
+	    CRC8_TABLE_SIZE * sizeof(u32)) {
+		msm_pcie_write_reg(dev->parf, PCIE20_PARF_BDF_TRANSLATE_CFG, 0);
+		msm_pcie_write_reg(dev->parf, PCIE20_PARF_SID_OFFSET, 0);
+
+		for (i = 0; i < dev->sid_info_len; i++)
+			msm_pcie_write_reg(dev->parf,
+				PCIE20_PARF_BDF_TRANSLATE_N +
+				dev->sid_info[i].pcie_sid * sizeof(u32),
+				dev->sid_info[i].bdf);
+		return;
+	}
 
 	/* Registers need to be zero out first */
 	memset_io(bdf_to_sid_base, 0, CRC8_TABLE_SIZE * sizeof(u32));

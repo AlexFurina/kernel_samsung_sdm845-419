@@ -24,3 +24,9 @@ obj-$(CONFIG_BCM4375)   += bcmdhd_101_16/
 obj-$(CONFIG_ARCH_KONA) += bcmdhd_101_16/dhd_custom_memprealloc.o
 obj-$(CONFIG_ARCH_KONA) += bcmdhd_101_16/dhd_custom_msm.o
 endif
+
+ifneq ($(CONFIG_BCM4361),)
+obj-$(CONFIG_BCM4361)  += bcmdhd_100_15/
+obj-$(CONFIG_ARCH_QCOM) += bcmdhd_100_15/dhd_custom_memprealloc.o
+obj-$(CONFIG_ARCH_QCOM) += bcmdhd_100_15/dhd_custom_msm.o
+endif
